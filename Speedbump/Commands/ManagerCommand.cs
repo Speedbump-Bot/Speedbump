@@ -1,6 +1,5 @@
 ﻿using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
-using DSharpPlus.SlashCommands.Attributes;
 
 namespace Speedbump.Commands
 {
@@ -30,14 +29,9 @@ namespace Speedbump.Commands
                     Type = type
                 };
 
-                if (FilterConnector.AddMatch(m))
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("I've added the phrase ||" + match + "|| to the filter."));
-                }
-                else
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("||" + match + "|| is already on the filter."));
-                }
+                await ctx.EditAsync(FilterConnector.AddMatch(m) ?
+                    "I've added the phrase ||" + match + "|| to the filter." :
+                    "||" + match + "|| is already on the filter.");
             }
 
             [SlashCommand("remove", "Remove from the guild filter.")]
@@ -46,14 +40,9 @@ namespace Speedbump.Commands
                 await ctx.DeferAsync(true);
                 match = match.ToLower().Trim();
 
-                if (FilterConnector.RemoveMatch(ctx.Guild.Id, match))
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("I've removed the phrase ||" + match + "|| from the filter."));
-                }
-                else
-                {
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("||" + match + "|| is not on the filter."));
-                }
+                await ctx.EditAsync(FilterConnector.RemoveMatch(ctx.Guild.Id, match) ?
+                    "I've removed the phrase ||" + match + "|| from the filter." :
+                    "||" + match + "|| is not on the filter.");
             }
 
             [SlashCommand("list", "List filtered words.")]
@@ -62,11 +51,11 @@ namespace Speedbump.Commands
                 await ctx.DeferAsync(true);
                 var res = await ModerationUtility.ConfirmAction(ctx, "Warning", "You are about to view all filters. This may including many bad words. Proceed?");
                 if (!res) { return; }
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(new DiscordEmbedBuilder().WithDescription(
+                await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(Extensions.Embed().WithDescription("```\n" +
                     string.Join('\n', FilterConnector.GetMatches(ctx.Guild.Id)
                         .OrderBy(o => o.Type)
                         .ThenBy(o => o.Match)
-                        .Select(m => $"{m.Match} ({m.Type})"))
+                        .Select(m => $"{m.Match,-15} ({m.Type})")) + "\n```"
                     ).WithColor(DiscordColor.Orange).WithTitle("Filtered Phrases")));
             }
         }
@@ -86,12 +75,12 @@ namespace Speedbump.Commands
 
                 if (TagConnector.GetByNameAndGuild(name, ctx.Guild.Id) is not null)
                 {
-                    await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent("That tag name already exists.").AsEphemeral(true));
+                    await ctx.CreateResponseAsync("That tag name already exists.", true);
                     return;
                 }
                 else if ((content is null || content == "") && attachment is null)
                 {
-                    await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent("You must have either content or an attachment.").AsEphemeral(true));
+                    await ctx.CreateResponseAsync("You must have either content or an attachment.", true);
                     return;
                 }
 
@@ -105,20 +94,14 @@ namespace Speedbump.Commands
                 };
                 TagConnector.Create(tag);
 
-                await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent("Tag created.").AsEphemeral(true));
+                await ctx.CreateResponseAsync("Tag created.", true);
             }
 
             [SlashCommand("delete", "Deletes a tag.")]
             public async Task Delete(InteractionContext ctx, [Option("name", "The name of the tag")][Autocomplete(typeof(TagAutocompleteProvider))] string tagName)
             {
-                if (TagConnector.Delete(ctx.Guild.Id, tagName))
-                {
-                    await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent("Tag deleted.").AsEphemeral(true));
-                }
-                else
-                {
-                    await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent("That tag does not exist.").AsEphemeral(true));
-                }
+                await ctx.CreateResponseAsync(new DiscordInteractionResponseBuilder().WithContent(TagConnector.Delete(ctx.Guild.Id, tagName) ?
+                    "Tag deleted." : "That tag does not exist.").AsEphemeral(true));
             }
         }
 
@@ -138,32 +121,20 @@ namespace Speedbump.Commands
                     Role = role.Id
                 };
 
-                if (XPConnector.AddLevel(l))
-                {
-                    await ctx.CreateResponseAsync("Level created.");
-                }
-                else
-                {
-                    await ctx.CreateResponseAsync("Failed to create level. Either the level already exists, or you have the max of 10 levels.");
-                }
+                await ctx.CreateResponseAsync(XPConnector.AddLevel(l) ? "Level created." : "Failed to create level. Either the level already exists, or you have the max of 10 levels.");
             }
 
             [SlashCommand("remove", "Removes a level.")]
             public async Task Remove(InteractionContext ctx, 
                 [Option("level", "The level to remove.")][Autocomplete(typeof(XPLevelAutocompleteProvider))]long level)
             {
-                if (XPConnector.DeleteLevel(new XPLevel()
+                var l = new XPLevel()
                 {
                     Guild = ctx.Guild.Id,
                     Level = (int)level,
-                }))
-                {
-                    await ctx.CreateResponseAsync("Level deleted.");
-                }
-                else
-                {
-                    await ctx.CreateResponseAsync("That level does not exist.");
-                }
+                };
+
+                await ctx.CreateResponseAsync(XPConnector.DeleteLevel(l) ? "Level deleted" : "That level does not exist.");
             }
         }
 
@@ -185,6 +156,115 @@ namespace Speedbump.Commands
                 await ctx.CreateResponseAsync(RoleConnector.Remove(ctx.Guild.Id, role.Id) ? "Role removed." : "I couldn't find that role.");
             }
         }
+
+        [SlashCommandGroup("config", "Guild Configuration")]
+        [SlashCommandPermissions(DSharpPlus.Permissions.ManageGuild)]
+        public class ConfigCommand : ApplicationCommandModule
+        {
+            [SlashCommand("list", "List all config items")]
+            public async Task List(InteractionContext ctx)
+            {
+                var configs = GuildConfigConnector.GetAll(ctx.Guild.Id);
+                var categories = configs.GroupBy(c => c.Label.Split('.')[0]);
+                var e = Extensions.Embed()
+                    .WithTitle("Guild Configuration");
+
+                foreach (var c in categories)
+                {
+                    var toPost = "";
+
+                    foreach (var item in c)
+                    {
+                        var valKey = item.Value ?? item.Default ?? null;
+
+                        object val = null;
+
+                        try
+                        {
+                            val = valKey is null ? null :
+                                item.Type == GuildConfigType.Role ? ctx.Guild.Roles.First(r => r.Key.ToString() == valKey).Value.Mention :
+                                item.Type == GuildConfigType.TextChannel || item.Type == GuildConfigType.Category ? ctx.Guild.Channels.First(c => c.Key.ToString() == valKey).Value.Mention :
+                                item.Type == GuildConfigType.Text ? valKey :
+                                "Error";
+                        }
+                        catch
+                        {
+                            toPost +=  item.Label.Split('.')[1] + " : " + (val?.ToString() ?? "~~") + "\n";
+                            continue;
+                        }
+
+                        toPost += item.Label.Split('.')[1] + " : " + (val?.ToString() ?? "~") + "\n";
+                    }
+                    toPost = toPost.Trim();
+
+                    e.AddField($"__{c.Key}__", toPost);
+                }
+
+                await ctx.CreateResponseAsync(e, true);
+            }
+
+            [SlashCommand("default", "Sets the config item to the default value.")]
+            public async Task Default(InteractionContext ctx,
+                [Option("item", "The configuration item to default")][Autocomplete(typeof(ConfigAutocompleteProvider))] string item)
+            {
+                var i = GuildConfigConnector.Get(ctx.Guild.Id, item);
+                if (i is null)
+                {
+                    await ctx.CreateResponseAsync("Invalid item.", true);
+                    return;
+                }
+
+                GuildConfigConnector.Set(ctx.Guild.Id, item, i.Default);
+                await ctx.CreateResponseAsync("I set it to default.", true);
+            }
+
+            [SlashCommand("setrole", "Set a role-type configuration item")]
+            public async Task SetRole(InteractionContext ctx,
+                [Option("itemrole", "The configuration item to set")][Autocomplete(typeof(ConfigAutocompleteProvider))] string item,
+                [Option("value", "The value of the item")] DiscordRole value)
+            {
+                var configs = GuildConfigConnector.GetAll(ctx.Guild.Id).Where(c => c.Type == GuildConfigType.Role);
+                if (!configs.Select(c => c.Item).Contains(item)) { await ctx.CreateResponseAsync("Invalid item/value pair.", true); return; }
+
+                GuildConfigConnector.Set(ctx.Guild.Id, item, value.Id.ToString());
+                await List(ctx);
+            }
+
+            [SlashCommand("setchannel", "Set a channel or category type configuration item")]
+            public async Task SetTextChannel(InteractionContext ctx,
+                [Option("itemchannel", "The configuration item to set")][Autocomplete(typeof(ConfigAutocompleteProvider))] string item,
+                [Option("value", "The value of the item")] DiscordChannel value)
+            {
+                var configs = GuildConfigConnector.GetAll(ctx.Guild.Id).Where(c => c.Type == GuildConfigType.TextChannel || c.Type == GuildConfigType.Category);
+
+                var selected = configs.FirstOrDefault(c => c.Item == item);
+
+                if (selected is null ||
+                    !(
+                        (value.Type == DSharpPlus.ChannelType.Text && selected.Type == GuildConfigType.TextChannel) ||
+                        (value.Type == DSharpPlus.ChannelType.Category && selected.Type == GuildConfigType.Category)
+                    ))
+                {
+                    await ctx.CreateResponseAsync("Invalid item/value pair.", true);
+                    return;
+                }
+
+                GuildConfigConnector.Set(ctx.Guild.Id, item, value.Id.ToString());
+                await List(ctx);
+            }
+
+            [SlashCommand("settext", "Set a text-type configuration item")]
+            public async Task SetText(InteractionContext ctx,
+                [Option("itemtext", "The configuration item to set")][Autocomplete(typeof(ConfigAutocompleteProvider))] string item,
+                [Option("value", "The value of the item")] string value)
+            {
+                var configs = GuildConfigConnector.GetAll(ctx.Guild.Id).Where(c => c.Type == GuildConfigType.Text);
+                if (!configs.Select(c => c.Item).Contains(item)) { await ctx.CreateResponseAsync("Invalid item/value pair.", true); return; }
+
+                GuildConfigConnector.Set(ctx.Guild.Id, item, value);
+                await List(ctx);
+            }
+        }
     }
 
     public class FilterMatchAutocompleteProvider : IAutocompleteProvider
@@ -192,6 +272,7 @@ namespace Speedbump.Commands
         public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx) =>
             Task.FromResult(
                 FilterConnector.GetMatches(ctx.Guild.Id)
+                    .Where(m => ctx.OptionValue.ToString().Trim() == "" || m.Match.ToLower().Contains(ctx.OptionValue.ToString().ToLower()))
                     .OrderBy(o => o.Type)
                     .ThenBy(o => o.Match)
                     .Select(m => new DiscordAutoCompleteChoice(m.Match + $" ({m.Type})", m.Match))
@@ -206,5 +287,23 @@ namespace Speedbump.Commands
                     .OrderBy(o => o.Level)
                     .Select(m => new DiscordAutoCompleteChoice($"{ctx.Guild.Roles[m.Role].Name} ({m.Level})", m.Level))
             );
+    }
+
+    public class ConfigAutocompleteProvider : IAutocompleteProvider
+    {
+        public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
+        {
+            var configs = GuildConfigConnector.GetAll(ctx.Guild.Id);
+            return Task.FromResult(configs.Where(c =>
+                {
+                    return
+                        (ctx.FocusedOption.Name == "itemrole" && c.Type == GuildConfigType.Role) ||
+                        (ctx.FocusedOption.Name == "itemchannel" && (c.Type == GuildConfigType.TextChannel || c.Type == GuildConfigType.Category)) ||
+                        (ctx.FocusedOption.Name == "itemtext" && c.Type == GuildConfigType.Text) ||
+                        ctx.FocusedOption.Name == "item";
+                })
+                .Where(c => ctx.OptionValue.ToString().Trim() == "" || c.Label.ToLower().Contains(ctx.OptionValue.ToString().ToLower()))
+                .Select(c => new DiscordAutoCompleteChoice(c.Label, c.Item)));
+        }
     }
 }

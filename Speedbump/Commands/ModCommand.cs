@@ -28,17 +28,17 @@ namespace Speedbump
                 if (member.Roles.Any(r => r.Id == roleId))
                 {
                     await member.RevokeRoleAsync(role);
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"I've removed the {role.Name} role from {member.Mention}."));
+                    await ctx.EditAsync($"I've removed the {role.Name} role from {member.Mention}.");
                 }
                 else
                 {
                     await member.GrantRoleAsync(role);
-                    await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent($"I've added the {role.Name} role to {member.Mention}."));
+                    await ctx.EditAsync($"I've added the {role.Name} role to {member.Mention}.");
                 }
             }
             catch (UnauthorizedException)
             {
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("I'm missing the permissions to do that."));
+                await ctx.EditAsync("I'm missing the permissions to do that.");
             }
         }
 
@@ -47,14 +47,7 @@ namespace Speedbump
         {
             await ctx.DeferAsync(true);
             var res = await ModerationUtility.MuteUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User);
-            if (res)
-            {
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("I've muted " + user.Mention + "."));
-            }
-            else
-            {
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(user.Mention + " is already muted."));
-            }
+            await ctx.EditAsync(res ? "I've muted " + user.Mention + "." : user.Mention + " is already muted.");
         }
 
         [SlashCommand("unmute", "Unmute a user", false)]
@@ -62,14 +55,7 @@ namespace Speedbump
         {
             await ctx.DeferAsync(true);
             var res = await ModerationUtility.UnmuteUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User);
-            if (res)
-            {
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("I've unmuted " + user.Mention + "."));
-            }
-            else
-            {
-                await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(user.Mention + " is already unmuted."));
-            }
+            await ctx.EditAsync(res ? "I've unmuted " + user.Mention + "." : user.Mention + " is already unmuted.");
         }
 
         [SlashCommand("kick", "Kick a user", false)]
@@ -77,7 +63,7 @@ namespace Speedbump
         {
             await ctx.DeferAsync(true);
 
-            var res = await ModerationUtility.ConfirmAction(ctx, "Ban Confirmation", "Are you sure you want to ban " + user.Mention + "?");
+            var res = await ModerationUtility.ConfirmAction(ctx, "Kick Confirmation", "Are you sure you want to ban " + user.Mention + "?");
 
             if (res)
             {
@@ -99,17 +85,21 @@ namespace Speedbump
         }
 
         [SlashCommand("purge", "Purge messages")]
-        public async Task Purge(InteractionContext ctx, [Option("count", "The number of messages to purge.")]long count)
+        public async Task Purge(InteractionContext ctx, [Option("count", "The number of messages to purge (1-100).")]long count)
         {
             if (count > 100 || count < 1)
             {
                 await ctx.CreateResponseAsync("Invalid count.");
             }
             await ctx.DeferAsync(true);
-            var list = (await ctx.Channel.GetMessagesAsync((int)count)).Reverse();
-            await ctx.Channel.DeleteMessagesAsync(list, "Purge by " + ctx.User.Id);
-            await ModerationUtility.HandleDelete(list, ctx.Channel, ctx.User);
-            await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Purge complete."));
+            var res = await ModerationUtility.ConfirmAction(ctx, "Purge Confirmation", "Are you sure you want to purge " + count + " messages?");
+            if (res)
+            {
+                var list = (await ctx.Channel.GetMessagesAsync((int)count)).Reverse();
+                await ctx.Channel.DeleteMessagesAsync(list, "Purge by " + ctx.User.Id);
+                await ModerationUtility.HandleDelete(list, ctx.Channel, ctx.User, ctx.Client);
+                await ctx.EditAsync("Purge complete.");
+            }
         }
     }
 }

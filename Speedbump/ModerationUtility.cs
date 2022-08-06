@@ -41,7 +41,7 @@ namespace Speedbump
             var guild = discord.Guilds[(ulong)f.SourceGuild];
             var modlogs = guild.Channels[ulong.Parse(GuildConfigConnector.Get((ulong)f.SourceGuild, "channel.modlogs").Value)];
 
-            var embed = new DiscordEmbedBuilder()
+            var embed = Extensions.Embed()
                 .WithColor(f.ResolutionType == FlagResolutionType.Warned || f.ResolutionType == FlagResolutionType.Muted ? DiscordColor.DarkBlue : f.ResolutionType == FlagResolutionType.Cleared ? DiscordColor.Green : DiscordColor.Red)
                 .WithDescription(f.SourceContent)
                 .AddField("Flag Reason", f.SystemMessage);
@@ -194,9 +194,10 @@ namespace Speedbump
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
 
-            var mutedRole = guild.GetRole(ulong.Parse(GuildConfigConnector.Get(guildId, "role.muted").Value));
-            var muteCategory = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.mutecategory").Value));
-            var modlogs = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.modlogs").Value));
+            var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
+            var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            if (mutedRole is null || muteCategory is null || modlogs is null) { return false; }
 
             if (!member.Roles.Any(r => r.Id == mutedRole.Id))
             {
@@ -216,13 +217,11 @@ namespace Speedbump
                 .Allow(Permissions.AccessChannels)
             });
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle("Member Muted")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
-                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
-                .WithTimestamp(DateTimeOffset.Now);
+                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
 
             await modlogs.SendMessageAsync(e);
 
@@ -234,9 +233,10 @@ namespace Speedbump
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
 
-            var mutedRole = guild.GetRole(ulong.Parse(GuildConfigConnector.Get(guildId, "role.muted").Value));
-            var muteCategory = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.mutecategory").Value));
-            var modlogs = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.modlogs").Value));
+            var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
+            var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            if (mutedRole is null || muteCategory is null || modlogs is null) { return false; }
 
             if (!member.Roles.Any(r => r.Id == mutedRole.Id))
             {
@@ -263,13 +263,11 @@ namespace Speedbump
             var archive = $"Mute Channel History - {user} ({member.Mention}) - Generated At {time}\n\n" + 
                 string.Join("\n\n", messages.Select(m => $"{m.CreationTimestamp.ToUnixTimeSeconds()}:{m.Author.Id} {m.CreationTimestamp.ToLocalTime()} {m.Author.Username} [{m.Attachments.Count}] {m.Content}"));
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle("Member Unmuted")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
-                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
-                .WithTimestamp(DateTimeOffset.Now);
+                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
             await modlogs.SendMessageAsync(new DiscordMessageBuilder().WithEmbed(e).WithFile($"{time.ToUnixTimeMilliseconds()} - {user}.txt", archive.StreamFromString()));
 
             await memberMuteChannel.DeleteAsync();
@@ -277,51 +275,50 @@ namespace Speedbump
             return true;
         }
 
-        public static async Task KickUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
+        public static async Task<bool> KickUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
-            var modlogs = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.modlogs").Value));
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            if (modlogs is null) { return false; }
 
             await member.RemoveAsync();
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle("Member Kicked")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
-                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
-                .WithTimestamp(DateTimeOffset.Now);
+                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
 
             await modlogs.SendMessageAsync(e);
+            return true;
         }
 
-        public static async Task BanUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
+        public static async Task<bool> BanUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
-            var modlogs = guild.GetChannel(ulong.Parse(GuildConfigConnector.Get(guildId, "channel.modlogs").Value));
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            if (modlogs is null) { return false; }
 
             await member.BanAsync();
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle("Member Banned")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
-                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
-                .WithTimestamp(DateTimeOffset.Now);
+                .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
 
             await modlogs.SendMessageAsync(e);
+            return true;
         }
 
         public static async Task<bool> ConfirmAction(InteractionContext ctx, string title, string content)
         {
-            var embed = new DiscordEmbedBuilder()
+            var embed = Extensions.Embed()
                 .WithColor(DiscordColor.Red)
                 .WithTitle(title)
-                .WithDescription(content)
-                .WithTimestamp(DateTimeOffset.Now);
+                .WithDescription(content);
 
             var t = Snowflake.Generate();
             var f = Snowflake.Generate();
@@ -356,20 +353,20 @@ namespace Speedbump
             return c;
         }
 
-        public static async Task HandleDelete(IEnumerable<DiscordMessage> messages, DiscordChannel channel, DiscordUser cause)
+        public static async Task<bool> HandleDelete(IEnumerable<DiscordMessage> messages, DiscordChannel channel, DiscordUser cause, DiscordClient discord)
         {
-            var modlogs = channel.Guild.Channels[ulong.Parse(GuildConfigConnector.Get(channel.Guild.Id, "channel.modinfo").Value)];
+            var modlogs = GuildConfigConnector.GetChannel(channel.Guild.Id, "channel.modinfo", discord);
+            if (modlogs is null) { return false; }
 
             DiscordEmbed Create(DiscordMessage msg)
             {
-                var embed = new DiscordEmbedBuilder()
+                var embed = Extensions.Embed()
                     .WithTitle("Message Deletion")
                     .WithDescription(msg?.Content ?? "```\nA message was deleted, but the content was not cached in the bot.\nThis flag is purely informational.\n```")
                     .WithColor(DiscordColor.Orange)
                     .AddField("Channel", channel.Mention, true)
                     .AddField("Sent At", $"<t:{msg.CreationTimestamp.ToUnixTimeSeconds()}:F>", true)
-                    .AddField("Message ID", msg.Id.ToString())
-                    .WithTimestamp(DateTimeOffset.Now);
+                    .AddField("Message ID", msg.Id.ToString());
 
                 if (msg.Author is not null)
                 {
@@ -397,6 +394,7 @@ namespace Speedbump
                     await modlogs.SendMessageAsync(new DiscordMessageBuilder().AddEmbeds(c2));
                 }
             }
+            return true;
         }
     }
 }

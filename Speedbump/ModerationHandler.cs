@@ -23,29 +23,30 @@ namespace Speedbump
 
         private async Task Discord_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs ev)
         {
-            var modinfo = ev.Guild.Channels[ulong.Parse(GuildConfigConnector.Get(ev.Guild.Id, "channel.modinfo").Value)];
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
+            if (modinfo is null) { return; }
+            var e = Extensions.Embed()
                 .WithTitle("Member Left")
                 .WithDescription(ev.Member.Mention)
                 .AddField("Joined At", $"<t:{ev.Member.JoinedAt.ToUnixTimeSeconds()}:F>", true)
-                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true)
-                .WithTimestamp(DateTimeOffset.Now);
+                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
             await modinfo.SendMessageAsync(e);
         }
 
         private async Task Discord_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs ev)
         {
-            var modinfo = ev.Guild.Channels[ulong.Parse(GuildConfigConnector.Get(ev.Guild.Id, "channel.modinfo").Value)];
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var general = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.general", Discord);
+            if (general is null) { return; }
+
+            var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
+            if (modinfo is null) { return; }
+
+            var e = Extensions.Embed()
                 .WithTitle("Member Joined")
                 .WithDescription(ev.Member.Mention)
-                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true)
-                .WithTimestamp(DateTimeOffset.Now);
+                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
             await modinfo.SendMessageAsync(e);
 
-            var general = ev.Guild.Channels[ulong.Parse(GuildConfigConnector.Get(ev.Guild.Id, "channel.general").Value)];
             var joinMessage = Tag.GenerateFromTemplate(GuildConfigConnector.Get(ev.Guild.Id, "text.joinmessage").Value, ev.Member, general);
             await general.SendMessageAsync(joinMessage);
         }
@@ -56,7 +57,7 @@ namespace Speedbump
         }
 
         private async Task Discord_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e) =>
-            await ModerationUtility.HandleDelete(new List<DiscordMessage>() { e.Message }, e.Channel, null);
+            await ModerationUtility.HandleDelete(new List<DiscordMessage>() { e.Message }, e.Channel, null, Discord);
 
         private async Task Discord_MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
         {
@@ -68,6 +69,9 @@ namespace Speedbump
         private async Task HandleMessage(DiscordMessage message)
         {
             if (message.Author.IsBot || (message.Author.IsSystem is not null && (bool)message.Author.IsSystem) || message.Channel.GuildId is null) { return; }
+
+            var modlogs = GuildConfigConnector.GetChannel(message.Channel.Guild.Id, "channel.modlogs", Discord);
+            if (modlogs is null) { return; }
 
             (var matches, var action) = ModerationUtility.GetMatches(message);
             if (action == FilterMatchType.None) { return; }

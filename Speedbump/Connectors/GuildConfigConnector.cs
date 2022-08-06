@@ -1,4 +1,7 @@
-﻿namespace Speedbump
+﻿using DSharpPlus;
+using DSharpPlus.Entities;
+
+namespace Speedbump
 {
     public static class GuildConfigConnector
     {
@@ -47,6 +50,34 @@
                 guild, item, value);
 
             return Get(guild, item);
+        }
+
+        public static DiscordChannel GetChannel(ulong guildId, string item, DiscordClient client)
+        {
+            try
+            {
+                var c = Get(guildId, item);
+                if (c is null || c.Value is null || c.Value.ToString().Trim() == "") { return null; }
+                return client.Guilds[guildId].Channels[ulong.Parse(c.Value.ToString())];
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public static DiscordRole GetRole(ulong guild, string item, DiscordClient client)
+        {
+            try
+            {
+                var c = Get(guild, item);
+                if (c is null || c.Value is null || c.Value.ToString().Trim() == "") { return null; }
+                return client.Guilds[guild].Roles[ulong.Parse(c.Value.ToString())];
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         public enum GuildConfigType

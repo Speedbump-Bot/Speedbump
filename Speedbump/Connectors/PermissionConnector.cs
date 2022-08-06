@@ -1,5 +1,4 @@
 ﻿using DSharpPlus;
-using DSharpPlus.Entities;
 
 namespace Speedbump
 {
@@ -18,16 +17,6 @@ namespace Speedbump
             if (guild.OwnerId == user || member.Roles.Any(r => r.Id.ToString() == managerRole)) { return true; }
 
             return false;
-        }
-
-        public static List<GuildInfo> GetPermitted(ulong user, DiscordClient discord)
-        {
-            return discord.Guilds.Select(g => g.Value).Where(g => HasGuildEditPermission(user, g.Id, discord)).Select(g => new GuildInfo()
-            {
-                ID = g.Id,
-                Name = g.Name,
-                Owner = g.OwnerId
-            }).ToList();
         }
     }
 }

@@ -31,9 +31,7 @@ namespace Speedbump
             }
             d = d.Trim();
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
-                .WithTimestamp(DateTimeOffset.Now)
+            var e = Extensions.Embed()
                 .WithTitle("Chat Rank Leaderboard")
                 .WithDescription(d);
 
@@ -56,8 +54,7 @@ namespace Speedbump
             var levelXp = XPConnector.GetMinXP(level);
             var nextLevel = XPConnector.GetMinXP(level + 1);
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle("Current Rank")
                 .AddField("Rank", $"{(toUse.rank == -1 ? "?" : toUse.rank.ToString())}/{leaderboard.Count}", true)
                 .AddField("Level", $"Current level: {level} ({string.Format("{0:n0}", levelXp)} XP)\nNext level: {level+1} ({string.Format("{0:n0}", nextLevel)} XP)", true)

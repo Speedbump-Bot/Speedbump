@@ -11,9 +11,7 @@ namespace Speedbump
             if (tagName == "- All -")
             {
                 var tags = TagConnector.GetByGuild(ctx.Guild.Id);
-                var e2 = new DiscordEmbedBuilder()
-                    .WithColor(DiscordColor.CornflowerBlue)
-                    .WithTimestamp(DateTimeOffset.Now)
+                var e2 = Extensions.Embed()
                     .WithDescription(string.Join("\n", tags.Select(t => t.Name)))
                     .WithTitle("Tag List")
                     .WithAuthor(ctx.User.Username, iconUrl: ctx.User.GetAvatarUrl(DSharpPlus.ImageFormat.Auto));
@@ -28,8 +26,7 @@ namespace Speedbump
                 return;
             }
 
-            var e = new DiscordEmbedBuilder()
-                .WithColor(DiscordColor.CornflowerBlue)
+            var e = Extensions.Embed()
                 .WithTitle(tag.Name);
 
             if (tag.Template is not null)
@@ -45,7 +42,6 @@ namespace Speedbump
         }
     }
 
-
     public class TagAutocompleteProvider : IAutocompleteProvider
     {
         public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
@@ -56,6 +52,8 @@ namespace Speedbump
             {
                 Name = "- All -"
             });
+
+            list = list.Where(l => ctx.OptionValue.ToString().Trim() == "" || l.Name.ToLower().Contains(ctx.OptionValue.ToString().ToLower())).ToList();
 
             return Task.FromResult(list.Select(m => new DiscordAutoCompleteChoice(m.Name, m.Name)));
         }

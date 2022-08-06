@@ -4,6 +4,7 @@ using DSharpPlus.Interactivity.Enums;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 
+using System.Diagnostics;
 using System.Reflection;
 
 namespace Speedbump
@@ -33,7 +34,14 @@ namespace Speedbump
 
             var slash = Client.UseSlashCommands();
             slash.SlashCommandErrored += Slash_SlashCommandErrored;
-            slash.RegisterCommands(Assembly.GetExecutingAssembly(), Configuration.Get<ulong>("discord.debugGuild"));
+            if (Debugger.IsAttached)
+            {
+                slash.RegisterCommands(Assembly.GetExecutingAssembly(), Configuration.Get<ulong>("discord.debugGuild"));
+            }
+            else
+            {
+                slash.RegisterCommands(Assembly.GetExecutingAssembly());
+            }
 
             Client.UseInteractivity(new InteractivityConfiguration()
             {
