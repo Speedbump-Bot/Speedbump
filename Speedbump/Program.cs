@@ -22,7 +22,6 @@ namespace Speedbump
                 .AddSingleton<IConfiguration>(config)
                 .AddSingleton<ILogger, Logger>()
                 .AddSingleton<DiscordManager>()
-                //.AddSingleton<WebManager>()
                 .AddSingleton<ModerationHandler>()
                 .AddSingleton<XPHandler>();
 
@@ -37,7 +36,6 @@ namespace Speedbump
             SqlInstance.Init(config, logger);
 
             provider.GetService<DiscordManager>();
-            //provider.GetService<WebManager>();
             provider.GetService<ModerationHandler>();
             provider.GetService<XPHandler>();
 
