@@ -73,7 +73,7 @@ namespace Speedbump.Commands
 
         [SlashCommandGroup("tag", "Tag Controls", true)]
         [SlashCommandPermissions(DSharpPlus.Permissions.ManageGuild)]
-        public class TagCommandManager
+        public class TagCommand
         {
             [SlashCommand("create", "Create a tag.")]
             public async Task Add(InteractionContext ctx, 
@@ -124,7 +124,7 @@ namespace Speedbump.Commands
 
         [SlashCommandGroup("level", "XP Level Controls", true)]
         [SlashCommandPermissions(DSharpPlus.Permissions.ManageGuild)]
-        public class LevelCommandManager
+        public class LevelCommand
         {
             [SlashCommand("add", "Adds a level.")]
             public async Task Add(InteractionContext ctx, 
@@ -144,7 +144,7 @@ namespace Speedbump.Commands
                 }
                 else
                 {
-                    await ctx.CreateResponseAsync("Couldn't create level. Either the level already exists, or you have the max of 10 levels.");
+                    await ctx.CreateResponseAsync("Failed to create level. Either the level already exists, or you have the max of 10 levels.");
                 }
             }
 
@@ -167,12 +167,23 @@ namespace Speedbump.Commands
             }
         }
 
-
         [SlashCommandGroup("role", "Control Toggleable Roles", true)]
         [SlashCommandPermissions(DSharpPlus.Permissions.ManageGuild)]
-        public class RoleCommandManager
+        public class RoleCommand
         {
+            [SlashCommand("add", "Adds a toggleable role.")]
+            public async Task Add(InteractionContext ctx,
+                [Option("role", "The role")] DiscordRole role)
+            {
+                await ctx.CreateResponseAsync(RoleConnector.Add(ctx.Guild.Id, role.Id) ? "Role added." : "I couldn't add that role. Is it already added?");
+            }
 
+            [SlashCommand("remove", "Removes a toggleable role.")]
+            public async Task Remove(InteractionContext ctx,
+                [Option("role", "The role")] DiscordRole role)
+            {
+                await ctx.CreateResponseAsync(RoleConnector.Remove(ctx.Guild.Id, role.Id) ? "Role removed." : "I couldn't find that role.");
+            }
         }
     }
 
