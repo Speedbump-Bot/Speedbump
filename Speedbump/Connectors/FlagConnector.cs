@@ -5,13 +5,27 @@
         public static int GetPointsByUserInGuild(ulong guild, ulong user, DateTime start, DateTime end)
         {
             var i = new SqlInstance();
-            return (int)Math.Round((decimal)i.Read(
+            return Decimal.ToInt32((decimal)i.Read(
                 @"select
 	                coalesce(sum(resolution_points), 0)
                 from @p0flag
                 where guild = @p1
                 and source_user = @p2
                 and time between @p3 and @p4",
+                guild, user, start, end).Rows[0][0]);
+        }
+
+        public static int GetCountByUserInGuild(ulong guild, ulong user, DateTime start, DateTime end)
+        {
+            var i = new SqlInstance();
+            return Decimal.ToInt32((long)i.Read(
+                @"select
+	                count(*)
+                from @p0flag
+                where guild = @p1
+                and source_user = @p2
+                and time between @p3 and @p4
+                and resolution_points > 0",
                 guild, user, start, end).Rows[0][0]);
         }
 

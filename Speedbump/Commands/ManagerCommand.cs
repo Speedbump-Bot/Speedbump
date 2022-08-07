@@ -303,7 +303,7 @@ namespace Speedbump.Commands
                         ctx.FocusedOption.Name == "item";
                 })
                 .Where(c => ctx.OptionValue.ToString().Trim() == "" || c.Label.ToLower().Contains(ctx.OptionValue.ToString().ToLower()))
-                .Select(c => new DiscordAutoCompleteChoice(c.Label, c.Item))); 
+                .Select(c => new DiscordAutoCompleteChoice(c.Label, c.Item)));
         }
     }
 }

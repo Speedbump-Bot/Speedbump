@@ -2,6 +2,8 @@
 
 using Newtonsoft.Json;
 
+using System.Diagnostics;
+
 namespace Speedbump
 {
     public class SqlInstance : IDisposable
@@ -41,7 +43,10 @@ namespace Speedbump
 
         public int Execute(string sql, params object[] parameters)
         {
-            Logger.Warning("EXECUTE " + sql + " " + JsonConvert.SerializeObject(parameters));
+            if (Debugger.IsAttached)
+            {
+                Logger.Warning("EXECUTE " + sql + " " + JsonConvert.SerializeObject(parameters));
+            }
             sql = sql.Replace("@p0", Prefix);
 
             var cmd = new MySqlCommand(sql, Connection);

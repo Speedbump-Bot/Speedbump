@@ -1,4 +1,5 @@
-﻿using DSharpPlus.Entities;
+﻿using DSharpPlus;
+using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.SlashCommands;
 
@@ -100,6 +101,28 @@ namespace Speedbump
                 await ModerationUtility.HandleDelete(list, ctx.Channel, ctx.User, ctx.Client);
                 await ctx.EditAsync("Purge complete.");
             }
+        }
+
+        [SlashCommand("info", "Get information about a user")]
+        public async Task Info(InteractionContext ctx, [Option("user", "The user")] DiscordUser user = null)
+        {
+            await ctx.DeferAsync(true);
+            var member = await ctx.Guild.GetMemberAsync((user ?? ctx.User).Id, true);
+            var xp = XPConnector.GetXP(ctx.Guild.Id, member.Id);
+            var level = XPConnector.GetLevel(ctx.Guild.Id, member.Id);
+            var points = FlagConnector.GetPointsByUserInGuild(ctx.Guild.Id, member.Id, DateTime.Now - TimeSpan.FromDays(30), DateTime.Now);
+            var count = FlagConnector.GetCountByUserInGuild(ctx.Guild.Id, member.Id, DateTime.Now - TimeSpan.FromDays(30), DateTime.Now);
+
+            var e = Extensions.Embed()
+                .WithAuthor(member.Username + "#" + member.Discriminator, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
+                .WithDescription($"**Flag Activity - Last 30 days**\n{points} points\n{count} marked flags")
+                .AddField("ID", member.Id.ToString(), true)
+                .AddField("Joined At", member.JoinedAt.Discord(), true)
+                .AddField("Account Created At", member.CreationTimestamp.Discord(), true)
+                .AddField("Activity", $"{xp} XP\n{level} Level", true)
+                .AddField("Roles", string.Join(", ", member.Roles.Select(r => r.Name)), true);
+
+            await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(e));
         }
     }
 }
