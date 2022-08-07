@@ -23,7 +23,8 @@ namespace Speedbump
                 .AddSingleton<ILogger, Logger>()
                 .AddSingleton<DiscordManager>()
                 .AddSingleton<ModerationHandler>()
-                .AddSingleton<XPHandler>();
+                .AddSingleton<XPHandler>()
+                .AddSingleton<FeedbackHandler>();
 
             var provider = collection.BuildServiceProvider();
 
@@ -38,6 +39,7 @@ namespace Speedbump
             provider.GetService<DiscordManager>();
             provider.GetService<ModerationHandler>();
             provider.GetService<XPHandler>();
+            provider.GetService<FeedbackHandler>();
 
             while (true)
             {
