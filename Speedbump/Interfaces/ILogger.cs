@@ -1,6 +1,4 @@
-﻿using Speedbump.Logging;
-
-namespace Speedbump
+﻿namespace Speedbump
 {
     public interface ILogger
     {
@@ -11,5 +9,6 @@ namespace Speedbump
         public void Warning(object content) => Log(LogLevel.Warning, content);
         public void Error(object content) => Log(LogLevel.Error, content);
         public void Critical(object content) => Log(LogLevel.Critical, content);
+        public void AddRedacted(string content);
     }
 }

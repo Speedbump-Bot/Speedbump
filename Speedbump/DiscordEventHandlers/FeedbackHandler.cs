@@ -1,6 +1,6 @@
 ﻿using DSharpPlus;
 
-namespace Speedbump
+namespace Speedbump.DiscordEventHandlers
 {
     public class FeedbackHandler
     {

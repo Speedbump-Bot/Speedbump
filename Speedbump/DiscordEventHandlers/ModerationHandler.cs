@@ -2,7 +2,7 @@
 using DSharpPlus.Entities;
 using DSharpPlus.EventArgs;
 
-namespace Speedbump
+namespace Speedbump.DiscordEventHandlers
 {
     public class ModerationHandler
     {
@@ -68,7 +68,7 @@ namespace Speedbump
 
         private async Task HandleMessage(DiscordMessage message)
         {
-            if (message.Author.IsBot || (message.Author.IsSystem is not null && (bool)message.Author.IsSystem) || message.Channel.GuildId is null) { return; }
+            if (message.Author.IsBot || message.Author.IsSystem is not null && (bool)message.Author.IsSystem || message.Channel.GuildId is null) { return; }
 
             var modlogs = GuildConfigConnector.GetChannel(message.Channel.Guild.Id, "channel.modlogs", Discord);
             if (modlogs is null) { return; }

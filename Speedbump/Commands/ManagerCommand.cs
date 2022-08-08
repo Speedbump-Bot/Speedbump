@@ -3,7 +3,6 @@ using DSharpPlus.SlashCommands;
 
 namespace Speedbump.Commands
 {
-
     [SlashCommandGroup("manager", "Manager Controls")]
     [SlashCommandPermissions(DSharpPlus.Permissions.ManageGuild)]
     public class ManagerCommand : ApplicationCommandModule
@@ -29,9 +28,21 @@ namespace Speedbump.Commands
                     Type = type
                 };
 
-                await ctx.EditAsync(FilterConnector.AddMatch(m) ?
+                var res = FilterConnector.AddMatch(m);
+                await ctx.EditAsync(res ?
                     "I've added the phrase ||" + match + "|| to the filter." :
                     "||" + match + "|| is already on the filter.");
+
+                if (res)
+                {
+                    var modinfo = GuildConfigConnector.GetChannel(ctx.Guild.Id, "channel.modinfo", ctx.Client);
+                    if (modinfo is null) { return; }
+
+                    var e = Extensions.Embed()
+                        .WithTitle("Filter Modified")
+                        .AddField("Added", $"||{m.Match}||");
+                    await modinfo.SendMessageAsync(e);
+                }
             }
 
             [SlashCommand("remove", "Remove from the guild filter.")]
@@ -40,9 +51,21 @@ namespace Speedbump.Commands
                 await ctx.DeferAsync(true);
                 match = match.ToLower().Trim();
 
-                await ctx.EditAsync(FilterConnector.RemoveMatch(ctx.Guild.Id, match) ?
+                var res = FilterConnector.RemoveMatch(ctx.Guild.Id, match);
+                await ctx.EditAsync(res ?
                     "I've removed the phrase ||" + match + "|| from the filter." :
                     "||" + match + "|| is not on the filter.");
+
+                if (res)
+                {
+                    var modinfo = GuildConfigConnector.GetChannel(ctx.Guild.Id, "channel.modinfo", ctx.Client);
+                    if (modinfo is null) { return; }
+
+                    var e = Extensions.Embed()
+                        .WithTitle("Filter Modified")
+                        .AddField("Removed", $"||{match}||");
+                    await modinfo.SendMessageAsync(e);
+                }
             }
 
             [SlashCommand("list", "List filtered words.")]
@@ -146,14 +169,14 @@ namespace Speedbump.Commands
             public async Task Add(InteractionContext ctx,
                 [Option("role", "The role")] DiscordRole role)
             {
-                await ctx.CreateResponseAsync(RoleConnector.Add(ctx.Guild.Id, role.Id) ? "Role added." : "I couldn't add that role. Is it already added?");
+                await ctx.CreateResponseAsync(RoleConnector.Add(ctx.Guild.Id, role.Id) ? "Role added." : "I couldn't add that role. Is it already added?", true);
             }
 
             [SlashCommand("remove", "Removes a toggleable role.")]
             public async Task Remove(InteractionContext ctx,
                 [Option("role", "The role")] DiscordRole role)
             {
-                await ctx.CreateResponseAsync(RoleConnector.Remove(ctx.Guild.Id, role.Id) ? "Role removed." : "I couldn't find that role.");
+                await ctx.CreateResponseAsync(RoleConnector.Remove(ctx.Guild.Id, role.Id) ? "Role removed." : "I couldn't find that role.", true);
             }
         }
 
@@ -177,6 +200,8 @@ namespace Speedbump.Commands
                     {
                         var valKey = item.Value ?? item.Default ?? null;
 
+                        var front = $"`{item.Label.Split('.')[1],-15}`";
+
                         object val = null;
 
                         try
@@ -189,11 +214,11 @@ namespace Speedbump.Commands
                         }
                         catch
                         {
-                            toPost +=  item.Label.Split('.')[1] + " : " + (val?.ToString() ?? "~~") + "\n";
+                            toPost += front + ": " + (val?.ToString() ?? "~") + "\n";
                             continue;
                         }
 
-                        toPost += item.Label.Split('.')[1] + " : " + (val?.ToString() ?? "~") + "\n";
+                        toPost += front + ": " + (val?.ToString() ?? "") + "\n";
                     }
                     toPost = toPost.Trim();
 

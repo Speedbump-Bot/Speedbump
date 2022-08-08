@@ -12,6 +12,14 @@ namespace Speedbump
         [SlashCommand("trust", "Toggles the trusted role for a user")]
         public async Task Trust(InteractionContext ctx, [Option("user", "The user to trust.")] DiscordUser user)
         {
+            var modinfo = GuildConfigConnector.GetChannel(ctx.Guild.Id, "channel.modinfo", ctx.Client);
+            var modlogs = GuildConfigConnector.GetChannel(ctx.Guild.Id, "channel.modlogs", ctx.Client);
+            if (modinfo is null || modlogs is null)
+            {
+                await ctx.CreateResponseAsync("The modinfo or modlogs channel has not been assigned.");
+                return;
+            }
+
             var member = (DiscordMember)user;
             var roleIdS = GuildConfigConnector.Get(ctx.Guild.Id, "role.trusted").Value;
             if (roleIdS is null || roleIdS == "")
@@ -30,11 +38,13 @@ namespace Speedbump
                 {
                     await member.RevokeRoleAsync(role);
                     await ctx.EditAsync($"I've removed the {role.Name} role from {member.Mention}.");
+                    await modlogs.SendMessageAsync(Extensions.Embed().WithTitle("User Untrusted").AddField("By", ctx.User.Mention).WithDescription(user.Mention));
                 }
                 else
                 {
                     await member.GrantRoleAsync(role);
                     await ctx.EditAsync($"I've added the {role.Name} role to {member.Mention}.");
+                    await modinfo.SendMessageAsync(Extensions.Embed().WithTitle("User Trusted").AddField("By", ctx.User.Mention).WithDescription(user.Mention));
                 }
             }
             catch (UnauthorizedException)

@@ -6,6 +6,7 @@ namespace Speedbump
     public class JsonConfiguration : IConfiguration
     {
         public JObject Config { get; private set; }
+        public static bool PreviousInstanceCrashed { get; private set; }
 
         public JsonConfiguration(Lifetime lifetime)
         {
@@ -20,6 +21,12 @@ namespace Speedbump
                 Config = null;
             }, Lifetime.ExitOrder.Configuration);
             Config = JObject.Parse(data);
+
+            if (File.Exists("lock"))
+            {
+                PreviousInstanceCrashed = true;
+                File.Delete("lock");
+            }
         }
 
         public T Get<T>(string path)

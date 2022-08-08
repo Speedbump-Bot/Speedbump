@@ -194,10 +194,11 @@ namespace Speedbump
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
 
+            var modRole = GuildConfigConnector.GetRole(guildId, "role.moderator", discord);
             var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
             var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);
             var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
-            if (mutedRole is null || muteCategory is null || modlogs is null) { return false; }
+            if (mutedRole is null || muteCategory is null || modlogs is null || modRole is null) { return false; }
 
             if (!member.Roles.Any(r => r.Id == mutedRole.Id))
             {
@@ -213,6 +214,12 @@ namespace Speedbump
 
             var muteChannel = guild.CreateChannelAsync(user.ToString(), ChannelType.Text, muteCategory, "Mute - " + member.Username, overwrites: new List<DiscordOverwriteBuilder>()
             {
+                new DiscordOverwriteBuilder(guild.EveryoneRole)
+                .Deny(Permissions.AccessChannels),
+                new DiscordOverwriteBuilder(await guild.GetMemberAsync(discord.CurrentUser.Id, true))
+                .Allow(Permissions.AccessChannels),
+                new DiscordOverwriteBuilder(modRole)
+                .Allow(Permissions.AccessChannels),
                 new DiscordOverwriteBuilder(member)
                 .Allow(Permissions.AccessChannels)
             });
@@ -231,7 +238,7 @@ namespace Speedbump
         public static async Task<bool> UnmuteUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
         {
             var guild = discord.Guilds[guildId];
-            var member = await guild.GetMemberAsync(user);
+            var member = await guild.GetMemberAsync(user, true);
 
             var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
             var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);

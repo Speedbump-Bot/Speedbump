@@ -1,6 +1,4 @@
-﻿using Speedbump.Logging;
-
-namespace Speedbump
+﻿namespace Speedbump
 {
     public class ConverterILogger : Microsoft.Extensions.Logging.ILogger, IDisposable
     {

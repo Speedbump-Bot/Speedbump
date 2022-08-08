@@ -1,4 +1,4 @@
-﻿namespace Speedbump.Logging
+﻿namespace Speedbump
 {
     public enum LogLevel
     {

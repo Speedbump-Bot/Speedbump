@@ -2,12 +2,12 @@
 
 using System.Collections.Concurrent;
 
-namespace Speedbump
+namespace Speedbump.DiscordEventHandlers
 {
     public class XPHandler
     {
         DiscordClient Discord;
-        ConcurrentQueue<(ulong guild, ulong player)> Players = new ();
+        ConcurrentQueue<(ulong guild, ulong player)> Players = new();
         bool Closing;
 
         public XPHandler(DiscordManager discord, Lifetime lifetime)
@@ -22,7 +22,7 @@ namespace Speedbump
 
         private Task Discord_MessageCreated(DiscordClient sender, DSharpPlus.EventArgs.MessageCreateEventArgs e)
         {
-            if (e.Author.IsBot || (e.Author.IsSystem.HasValue && e.Author.IsSystem.Value)) { return Task.CompletedTask; }
+            if (e.Author.IsBot || e.Author.IsSystem.HasValue && e.Author.IsSystem.Value) { return Task.CompletedTask; }
 
             Players.Enqueue((e.Guild.Id, e.Author.Id));
             return Task.CompletedTask;
@@ -69,7 +69,8 @@ namespace Speedbump
                             try
                             {
                                 member.SendMessageAsync($"You've been given the role `{role.Name}` for reaching level {level} in {guild.Name}!").GetAwaiter().GetResult();
-                            } catch { }
+                            }
+                            catch { }
                         }
                     }
                 }

@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 
+using Speedbump.DiscordEventHandlers;
+
 namespace Speedbump
 {
     internal class Program
@@ -41,6 +43,8 @@ namespace Speedbump
             provider.GetService<XPHandler>();
             provider.GetService<FeedbackHandler>();
 
+            File.Create("lock").Dispose();
+
             while (true)
             {
                 var input = Console.ReadLine().ToLower().Trim();
@@ -48,6 +52,7 @@ namespace Speedbump
                 {
                     case "exit":
                         logger.Information("Shutting down...");
+                        File.Delete("lock");
                         lifetime.End(Lifetime.ExitCause.Normal);
                         Environment.Exit(0);
                         break;
@@ -57,10 +62,17 @@ namespace Speedbump
 
         private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e, ILogger logger, Lifetime lifetime)
         {
-            logger.Critical(e.ExceptionObject);
+            try
+            {
+                logger.Critical(e.ExceptionObject);
+
+            } catch { }
             if (e.IsTerminating)
             {
-                lifetime.End(Lifetime.ExitCause.Exception);
+                try
+                {
+                    lifetime.End(Lifetime.ExitCause.Exception);
+                } catch { }
             }
         }
     }

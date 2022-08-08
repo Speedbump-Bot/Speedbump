@@ -1,6 +1,4 @@
-﻿using Speedbump.Logging;
-
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.IO.Compression;
 
@@ -11,7 +9,7 @@ namespace Speedbump
         public class LogMessage
         {
             public LogLevel Level { get; set; }
-            public object Content { get; set; }
+            public string Content { get; set; }
             public string File { get; set; }
             public int Line { get; set; }
             public DateTime Time { get; set; }
@@ -31,6 +29,7 @@ namespace Speedbump
                 { LogLevel.Error, ConsoleColor.Red },
                 { LogLevel.Critical, ConsoleColor.DarkRed },
             };
+        private List<string> Redacted = new();
 
         public Logger(IConfiguration config, Lifetime lifetime)
         {
@@ -74,10 +73,16 @@ namespace Speedbump
             file = file is null ? "" : file.Contains('\\') ? file[(file.LastIndexOf(@"\") + 1)..] : file;
             var line = frame.GetFileLineNumber();
 
+            var m = message.ToString();
+            foreach (var r in Redacted)
+            {
+                m = m.Replace(r, "{redacted}");
+            }
+
             LogQueue.Enqueue(new LogMessage()
             {
                 Level = level,
-                Content = message,
+                Content = m,
                 Line = line,
                 File = file,
                 Time = DateTime.Now,
@@ -125,6 +130,11 @@ namespace Speedbump
         {
             Log(LogLevel.Information, $"Logger shutting down ({cause})...");
             while (!LogQueue.IsEmpty || IsLogging) { Thread.Sleep(1); }
+        }
+
+        public void AddRedacted(string content)
+        {
+            Redacted.Add(content);
         }
     }
 }
