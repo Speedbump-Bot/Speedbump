@@ -62,10 +62,17 @@ namespace Speedbump
 
         private async Task Slash_SlashCommandErrored(SlashCommandsExtension sender, DSharpPlus.SlashCommands.EventArgs.SlashCommandErrorEventArgs e)
         {
+            try
+            {
+                await e.Context.CreateResponseAsync("I've run into an error. I've let my devs know.");
+            }
+            catch (Exception ex)
+            {
+                await e.Context.EditAsync("I've run into an error. I've let my devs know.");
+            }
+
             Logger.Error($"tickControl ```cs\n {e.Exception}\n```\n\nUser: {e.Context.Member.Mention}\nCommand: {e.Context.CommandName}\nChannel: {e.Context.Channel.Mention}\nServer: {e.Context.Guild.Name}\n" +
                 $"Type: {e.Context.Type}\nInteraction: {e.Context.InteractionId}");
-
-            await e.Context.EditAsync("I've run into an error. I've let my devs know.");
         }
 
         private Task Client_Ready(DiscordClient sender, DSharpPlus.EventArgs.ReadyEventArgs e)

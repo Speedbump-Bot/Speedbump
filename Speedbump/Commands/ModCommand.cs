@@ -6,7 +6,7 @@ using DSharpPlus.SlashCommands;
 namespace Speedbump
 {
     [SlashCommandGroup("mod", "Moderation Commands")]
-    [SlashCommandPermissions(DSharpPlus.Permissions.ManageMessages)]
+    [SlashCommandPermissions(Permissions.ManageMessages)]
     public class ModCommand : ApplicationCommandModule
     {
         [SlashCommand("trust", "Toggles the trusted role for a user")]
@@ -54,10 +54,12 @@ namespace Speedbump
         }
 
         [SlashCommand("mute", "Mute a user", false)]
-        public async Task Mute(InteractionContext ctx, [Option("user", "The user to mute.")] DiscordUser user)
+        public async Task Mute(InteractionContext ctx, 
+            [Option("user", "The user to mute.")] DiscordUser user, 
+            [Option("reason", "The reason for the mute")] string reason)
         {
             await ctx.DeferAsync(true);
-            var res = await ModerationUtility.MuteUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User);
+            var res = await ModerationUtility.MuteUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User, reason);
             await ctx.EditAsync(res ? "I've muted " + user.Mention + "." : user.Mention + " is already muted.");
         }
 

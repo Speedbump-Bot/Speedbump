@@ -149,7 +149,7 @@ namespace Speedbump
                 }
                 else if (e.Id == "flag-mute")
                 {
-                    await MuteUser((ulong)flag.SourceUser, (ulong)flag.SourceGuild, discord, e.User);
+                    await MuteUser(flag.SourceUser, (ulong)flag.SourceGuild, discord, e.User, "Muted By Flag");
 
                     flag.ResolutionType = FlagResolutionType.Muted;
                     flag.ResolutionPoints = 3;
@@ -189,15 +189,15 @@ namespace Speedbump
             }
         }
 
-        public static async Task<bool> MuteUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
+        public static async Task<bool> MuteUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause, string reason)
         {
             var guild = discord.Guilds[guildId];
-            var member = await guild.GetMemberAsync(user);
+            var member = await guild.GetMemberAsync(user, true);
 
             var modRole = GuildConfigConnector.GetRole(guildId, "role.moderator", discord);
             var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
             var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);
-            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modinfo", discord);
             if (mutedRole is null || muteCategory is null || modlogs is null || modRole is null) { return false; }
 
             if (!member.Roles.Any(r => r.Id == mutedRole.Id))
@@ -212,7 +212,8 @@ namespace Speedbump
             var existing = (await guild.GetChannelsAsync()).FirstOrDefault(c => c.Name == user.ToString());
             if (existing is not null) { return false; }
 
-            var muteChannel = guild.CreateChannelAsync(user.ToString(), ChannelType.Text, muteCategory, "Mute - " + member.Username, overwrites: new List<DiscordOverwriteBuilder>()
+            var displayname = Regex.Replace((member.Nickname ?? member.Username).ToLower(), @"\s+", "-");
+            var muteChannel = guild.CreateChannelAsync(displayname, ChannelType.Text, muteCategory, user.ToString(), overwrites: new List<DiscordOverwriteBuilder>()
             {
                 new DiscordOverwriteBuilder(guild.EveryoneRole)
                 .Deny(Permissions.AccessChannels),
@@ -228,9 +229,23 @@ namespace Speedbump
                 .WithTitle("Member Muted")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
+                .AddField("Reason", reason)
                 .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
 
-            await modlogs.SendMessageAsync(e);
+            if (cause.IsCurrent)
+            {
+                await modlogs.SendMessageAsync(
+                    new DiscordMessageBuilder()
+                        .WithContent($"I've automatically muted a user, " + modRole.Mention)
+                        .WithEmbed(e)
+                        .WithAllowedMention(new RoleMention(modRole)));
+            }
+            else
+            {
+                await modlogs.SendMessageAsync(
+                    new DiscordMessageBuilder()
+                        .WithEmbed(e));
+            }
 
             return true;
         }
@@ -242,7 +257,7 @@ namespace Speedbump
 
             var mutedRole = GuildConfigConnector.GetRole(guildId, "role.muted", discord);
             var muteCategory = GuildConfigConnector.GetChannel(guildId, "channel.mutecategory", discord);
-            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modinfo", discord);
             if (mutedRole is null || muteCategory is null || modlogs is null) { return false; }
 
             if (!member.Roles.Any(r => r.Id == mutedRole.Id))
@@ -254,7 +269,7 @@ namespace Speedbump
                 await member.RevokeRoleAsync(mutedRole);
             }
 
-            var memberMuteChannel = (await guild.GetChannelsAsync()).FirstOrDefault(c => c.Name == user.ToString());
+            var memberMuteChannel = (await guild.GetChannelsAsync()).FirstOrDefault(c => c.Topic == user.ToString());
 
             var messages = new List<DiscordMessage>();
             var lastCount = 0;

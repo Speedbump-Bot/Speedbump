@@ -78,7 +78,8 @@ namespace Speedbump.DiscordEventHandlers
 
             if (action == FilterMatchType.Mute)
             {
-                await ModerationUtility.MuteUser(message.Author.Id, (ulong)message.Channel.GuildId, Discord, Discord.CurrentUser);
+                await message.DeleteAsync();
+                await ModerationUtility.MuteUser(message.Author.Id, (ulong)message.Channel.GuildId, Discord, Discord.CurrentUser, "Automatic - Filter");
             }
 
             var flag = new Flag()

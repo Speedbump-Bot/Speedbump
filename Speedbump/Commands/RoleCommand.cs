@@ -9,13 +9,13 @@ namespace Speedbump
         public async Task Role(InteractionContext ctx,
             [Option("role", "The role")][Autocomplete(typeof(RoleAutocompleteProvider))]string roleS)
         {
+            await ctx.DeferAsync(true);
+
             if (!ulong.TryParse(roleS, out var role))
             {
                 await ctx.EditAsync("Invalid role.");
                 return;
             }
-
-            await ctx.DeferAsync(true);
             var available = RoleConnector.GetRoles(ctx.Guild.Id);
 
             var r = ctx.Guild.GetRole(role);
