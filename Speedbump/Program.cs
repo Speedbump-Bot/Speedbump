@@ -26,7 +26,8 @@ namespace Speedbump
                 .AddSingleton<DiscordManager>()
                 .AddSingleton<ModerationHandler>()
                 .AddSingleton<XPHandler>()
-                .AddSingleton<FeedbackHandler>();
+                .AddSingleton<FeedbackHandler>()
+                .AddSingleton<RoleHandler>();
 
             var provider = collection.BuildServiceProvider();
 
@@ -42,6 +43,7 @@ namespace Speedbump
             provider.GetService<ModerationHandler>();
             provider.GetService<XPHandler>();
             provider.GetService<FeedbackHandler>();
+            provider.GetService<RoleHandler>();
 
             File.Create("lock").Dispose();
 

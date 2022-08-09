@@ -74,7 +74,7 @@ namespace Speedbump
         {
             await ctx.DeferAsync(true);
 
-            var res = await ModerationUtility.ConfirmAction(ctx, "Kick Confirmation", "Are you sure you want to ban " + user.Mention + "?");
+            var res = await ModerationUtility.ConfirmAction(ctx, "Kick Confirmation", "Are you sure you want to kick " + user.Mention + "?");
 
             if (res)
             {

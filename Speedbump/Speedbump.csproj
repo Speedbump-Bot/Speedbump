@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Cronos" Version="0.7.1" />
     <PackageReference Include="DSharpPlus" Version="4.3.0-nightly-01160" />
     <PackageReference Include="DSharpPlus.Interactivity" Version="4.3.0-nightly-01160" />
     <PackageReference Include="DSharpPlus.SlashCommands" Version="4.3.0-nightly-01160" />
@@ -15,7 +16,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageReference Include="MySql.Data" Version="8.0.29" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2-beta1" />
-    <PackageReference Include="Portable.BouncyCastle" Version="1.9.0" />
 	<FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
