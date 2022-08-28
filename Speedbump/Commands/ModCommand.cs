@@ -72,7 +72,9 @@ namespace Speedbump
         }
 
         [SlashCommand("kick", "Kick a user", false)]
-        public async Task Kick(InteractionContext ctx, [Option("user", "The user to kick.")] DiscordUser user)
+        public async Task Kick(InteractionContext ctx, 
+            [Option("user", "The user to kick.")] DiscordUser user,
+            [Option("reason", "The reason")]string reason)
         {
             await ctx.DeferAsync(true);
 
@@ -80,12 +82,14 @@ namespace Speedbump
 
             if (res)
             {
-                await ModerationUtility.KickUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User);
+                await ModerationUtility.KickUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User, reason);
             }
         }
 
         [SlashCommand("ban", "Ban a user", false)]
-        public async Task Ban(InteractionContext ctx, [Option("user", "The user to ban.")] DiscordUser user)
+        public async Task Ban(InteractionContext ctx, 
+            [Option("user", "The user to ban.")] DiscordUser user,
+            [Option("reason", "The reason")] string reason)
         {
             await ctx.DeferAsync(true);
 
@@ -93,7 +97,7 @@ namespace Speedbump
 
             if (res)
             {
-                await ModerationUtility.BanUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User);
+                await ModerationUtility.BanUser(user.Id, ctx.Guild.Id, ctx.Client, ctx.User, reason);
             }
         }
 
@@ -127,7 +131,7 @@ namespace Speedbump
 
             var e = Extensions.Embed()
                 .WithAuthor(member.Username + "#" + member.Discriminator, iconUrl: member.GetAvatarUrl(ImageFormat.Auto))
-                .WithDescription($"**Flag Activity - Last 30 days**\n{points} points\n{count} marked flags")
+                .WithDescription($"**Flag Activity - Last 30 days**\n{points} points\n{count} flags with points")
                 .AddField("ID", member.Id.ToString(), true)
                 .AddField("Joined At", member.JoinedAt.Discord(), true)
                 .AddField("Account Created At", member.CreationTimestamp.Discord(), true)
@@ -135,6 +139,36 @@ namespace Speedbump
                 .AddField("Roles", string.Join(", ", member.Roles.Select(r => r.Name)), true);
 
             await ctx.EditResponseAsync(new DiscordWebhookBuilder().AddEmbed(e));
+        }
+
+        [SlashCommand("slowmode", "Enable slowmode in a channel")]
+        public async Task Slowmode(InteractionContext ctx, 
+            [Option("channel", "The channel to enable slowmode in")] DiscordChannel channel,
+            [Option("reason", "The reason for the slowmode")]string reason,
+            [Option("duration", "How long the slowmode will last, in minutes (1-1440)")]long duration,
+            [Option("timer", "How long between each message, in seconds (0-21600)")]long timer)
+        {
+            if (channel.Type == ChannelType.Category)
+            {
+                await ctx.CreateResponseAsync("You can't modify slowmode on a category, silly!", true);
+                return;
+            }
+
+            await ctx.DeferAsync(true);
+            var res = await ModerationUtility.Slowmode(timer, duration, channel, ctx.Client, ctx.User, reason);
+            await ctx.EditAsync(res ? "Slowmode Has Been Modified." : "Failed to modify slowmode.");
+        }
+
+        [SlashCommand("warn", "Warn a user.")]
+        public async Task Warn(InteractionContext ctx,
+            [Option("user", "The user to warn")] DiscordUser user,
+            [Option("reason", "The reason the user is being warned. This reason is sent to the user.")]string reason,
+            [Option("points", "The points to give the user. This is *not* sent to the user.")]long points = 1,
+            [Option("notify", "Whether to send the user a DM about this warning. Using false is useful for making notes.")]bool notify = true)
+        {
+            await ctx.DeferAsync(true);
+            var res = await ModerationUtility.Warn(user, (int)points, reason, ctx.User, ctx.Client, notify);            
+            await ctx.EditAsync("The user has been given a warning." + (res ? "" : " I was unable to direct message the user. (Blocked or no longer on the server?)"));
         }
     }
 }

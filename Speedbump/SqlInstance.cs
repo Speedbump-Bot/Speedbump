@@ -37,8 +37,25 @@ namespace Speedbump
 
         public SqlInstance()
         {
-            Connection = new MySqlConnection(ConnString);
-            Connection.Open();
+            startup:;
+            var attempts = 0;
+            try
+            {
+                attempts++;
+                Connection = new MySqlConnection(ConnString);
+                Connection.Open();
+            } 
+            catch
+            {
+                if (attempts >= 3)
+                {
+                    throw;
+                }
+                else
+                {
+                    goto startup;
+                }
+            }
         }
 
         public int Execute(string sql, params object[] parameters)

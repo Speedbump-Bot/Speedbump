@@ -68,7 +68,7 @@ namespace Speedbump.DiscordEventHandlers
 
         private async Task HandleMessage(DiscordMessage message)
         {
-            if (message.Author.IsBot || message.Author.IsSystem is not null && (bool)message.Author.IsSystem || message.Channel.GuildId is null) { return; }
+            if (message.Author.IsBot || (message.Author.IsSystem is not null && (bool)message.Author.IsSystem) || message.Channel.GuildId is null) { return; }
 
             var modlogs = GuildConfigConnector.GetChannel(message.Channel.Guild.Id, "channel.modlogs", Discord);
             if (modlogs is null) { return; }
@@ -81,6 +81,12 @@ namespace Speedbump.DiscordEventHandlers
                 await message.DeleteAsync();
                 await ModerationUtility.MuteUser(message.Author.Id, (ulong)message.Channel.GuildId, Discord, Discord.CurrentUser, "Automatic - Filter");
             }
+            else if (action == FilterMatchType.Warn)
+            {
+                await message.DeleteAsync();
+                var msg = GuildConfigConnector.Get(message.Channel.Guild.Id, "text.autowarnmessage").Value;
+                await message.Channel.SendMessageAsync(Tag.GenerateFromTemplate(msg, message.Author, message.Channel));
+            }
 
             var flag = new Flag()
             {
@@ -91,14 +97,14 @@ namespace Speedbump.DiscordEventHandlers
                 SourceUser = message.Author.Id,
                 Time = message.Timestamp.LocalDateTime,
                 Type = FlagType.Message,
-                SystemMessage = action == FilterMatchType.Mute ? "The user was automatically muted." : "The message matched a filter.",
+                SystemMessage = action == FilterMatchType.Mute ? "The user was automatically muted." : action == FilterMatchType.Warn ? "The user was automatically warned." : "The message matched a filter.",
                 SourceMessage = message.Id,
                 SourceGuild = message.Channel.Guild.Id,
                 FlaggedBy = Discord.CurrentUser.Id,
-                ResolutionPoints = action == FilterMatchType.Mute ? 3 : 0,
-                ResolutionTime = action == FilterMatchType.Mute ? default : DateTime.Now,
-                ResolutionType = action == FilterMatchType.Mute ? FlagResolutionType.Muted : FlagResolutionType.None,
-                ResolutionUser = action == FilterMatchType.Mute ? Discord.CurrentUser.Id : null,
+                ResolutionPoints = action == FilterMatchType.Mute ? 3 : action == FilterMatchType.Warn ? 1 : 0,
+                ResolutionTime = action == FilterMatchType.Mute || action == FilterMatchType.Warn ? DateTime.Now : default,
+                ResolutionType = action == FilterMatchType.Mute ? FlagResolutionType.Muted : action == FilterMatchType.Warn ? FlagResolutionType.Warned : FlagResolutionType.None,
+                ResolutionUser = action == FilterMatchType.Mute || action == FilterMatchType.Warn ? Discord.CurrentUser.Id : null,
             };
 
             flag = await ModerationUtility.RenderFlag(flag, Discord);

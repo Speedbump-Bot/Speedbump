@@ -26,6 +26,7 @@
     public enum FlagType
     {
         Message = 0,
+        User = 1,
     }
 
     public enum FlagResolutionType

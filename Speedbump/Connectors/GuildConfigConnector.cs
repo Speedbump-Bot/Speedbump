@@ -11,13 +11,13 @@ namespace Speedbump
             return i.Read(@"
                 select * from
                 (
-	                select c.item, c.value, d.label, d.type from @p0guildconfig c
+	                select c.item, c.value, d.label, d.type, d.value as `default` from @p0guildconfig c
 	                join @p0guildconfig_default d using (item)
                     where c.guild = @p1
                     and c.item = @p2
                     union
 	                select
-		                *
+		                d.item, d.value, d.label, d.type, d.value
 	                from @p0guildconfig_default d
                     where d.item = @p2
                 ) configs
@@ -31,12 +31,12 @@ namespace Speedbump
             return i.Read(@"
                 select * from
                 (
-	                select c.item, c.value, d.label, d.type from @p0guildconfig c
+	                select c.item, c.value, d.label, d.type, d.value as `default` from @p0guildconfig c
 	                join @p0guildconfig_default d using (item)
                     where c.guild = @p1
                     union
 	                select
-		                *
+		                d.item, d.value, d.label, d.type, d.value
 	                from @p0guildconfig_default d
                 ) configs
                 group by configs.item", 

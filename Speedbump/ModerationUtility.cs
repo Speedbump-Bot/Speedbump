@@ -4,6 +4,7 @@ using DSharpPlus.EventArgs;
 using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 
 namespace Speedbump
@@ -18,15 +19,10 @@ namespace Speedbump
 
             var matches = guildFilters.Where(f =>
             {
-                if (f.Type == FilterMatchType.Mute)
+                var content = new Regex("[^a-zA-Z]").Replace(message.Content, "").ToLower();
+
+                if (f.Type == FilterMatchType.Mute || f.Type == FilterMatchType.Flag || f.Type == FilterMatchType.Warn)
                 {
-                    return message.Content.Contains(f.Match);
-                }
-                else if (f.Type == FilterMatchType.Flag) 
-                {
-                    var content = message.Content;
-                    var rgx = new Regex("[^a-zA-Z]");
-                    content = rgx.Replace(content, "");
                     return content.Contains(f.Match);
                 }
 
@@ -43,22 +39,31 @@ namespace Speedbump
 
             var embed = Extensions.Embed()
                 .WithColor(f.ResolutionType == FlagResolutionType.Warned || f.ResolutionType == FlagResolutionType.Muted ? DiscordColor.DarkBlue : f.ResolutionType == FlagResolutionType.Cleared ? DiscordColor.Green : DiscordColor.Red)
-                .WithDescription(f.SourceContent)
-                .AddField("Flag Reason", f.SystemMessage);
+                .AddField("Flag Reason", f.SystemMessage)
+                .WithDescription(f.SourceContent);
 
             if (f.SourceMatches is not null && f.SourceMatches != "")
             {
-                embed.AddField("Matches", f.SourceMatches);
+                embed.AddField("Matches", f.SourceMatches, true);
             }
 
-            embed.AddField("User", (await guild.GetMemberAsync((ulong)f.SourceUser)).Mention, true)
-                .AddField("Channel", guild.GetChannel((ulong)f.SourceChannel).Mention, true)
+            if (f.Type == FlagType.Message)
+            {
+                embed.AddField("Channel", guild.GetChannel(f.SourceChannel).Mention, true)
+                    .AddField("Link", $"[Here](https://discord.com/channels/{f.Guild}/{f.SourceChannel}/{f.SourceMessage})", true);
+            }
+
+            embed.AddField("User", (await guild.GetMemberAsync(f.SourceUser)).Mention, true)
                 .AddField("Flagged By", f.FlaggedBy is null ? discord.CurrentUser.Mention : (await guild.GetMemberAsync((ulong)f.FlaggedBy)).Mention, true)
-                .AddField("Points Last 30 Days", FlagConnector.GetPointsByUserInGuild(guild.Id, (ulong)f.SourceUser, DateTime.Now - TimeSpan.FromDays(30), DateTime.Now).ToString())
-                .AddField("Rolled Back?", (FlagConnector.GetHistory(f).Count > 2).ToString())
+                .AddField("Points Last 30 Days", FlagConnector.GetPointsByUserInGuild(guild.Id, f.SourceUser, DateTime.Now - TimeSpan.FromDays(30), DateTime.Now).ToString())
                 .AddField("Resolution", f.ResolutionType.ToString(), true)
                 .WithTimestamp(DateTimeOffset.Now)
-                .WithAuthor((await guild.GetMemberAsync((ulong)f.SourceUser)).Username, iconUrl: (await guild.GetMemberAsync((ulong)f.SourceUser)).GetAvatarUrl(ImageFormat.Auto));
+                .WithAuthor((await guild.GetMemberAsync(f.SourceUser)).Username, iconUrl: (await guild.GetMemberAsync(f.SourceUser)).GetAvatarUrl(ImageFormat.Auto));
+
+            if (FlagConnector.GetHistory(f).Count > 2)
+            {
+                embed.WithFooter("This flag has been rolled back.");
+            }
 
             if (f.ResolutionType != FlagResolutionType.None)
             {
@@ -74,7 +79,7 @@ namespace Speedbump
                     new DiscordButtonComponent(ButtonStyle.Success, "flag-clear", "", emoji: new DiscordComponentEmoji("✅")),
                     new DiscordButtonComponent(ButtonStyle.Danger, "flag-warn", "", emoji: new DiscordComponentEmoji("⚠")),
                     new DiscordButtonComponent(ButtonStyle.Danger, "flag-mute", "", emoji: new DiscordComponentEmoji("🔇")),
-                    new DiscordButtonComponent(ButtonStyle.Danger, "flag-history", "", emoji: new DiscordComponentEmoji("🗒")),
+                    new DiscordButtonComponent(ButtonStyle.Primary, "flag-history", "", emoji: new DiscordComponentEmoji("🗒")),
                 }));
             }
             else
@@ -82,7 +87,7 @@ namespace Speedbump
                 rows.Add(new DiscordActionRowComponent(new List<DiscordComponent>()
                 {
                     new DiscordButtonComponent(ButtonStyle.Secondary, "flag-rollback", "", emoji: new DiscordComponentEmoji("⏪")),
-                    new DiscordButtonComponent(ButtonStyle.Danger, "flag-history", "", emoji: new DiscordComponentEmoji("🗒")),
+                    new DiscordButtonComponent(ButtonStyle.Primary, "flag-history", "", emoji: new DiscordComponentEmoji("🗒")),
                 }));
             }
 
@@ -113,7 +118,15 @@ namespace Speedbump
             var guild = e.Message.Channel.Guild;
             var flag = FlagConnector.GetByMessage(e.Message.Id);
 
-            var message = "ERROR";
+            if (e.User.Id == flag.SourceUser && !Debugger.IsAttached)
+            {
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder()
+                {
+                    Content = "You cannot modify a flag about yourself.",
+                    IsEphemeral = true,
+                });
+                return;
+            }
 
             if (e.Id == "flag-history")
             {
@@ -135,7 +148,6 @@ namespace Speedbump
                     flag.ResolutionUser = e.User.Id;
                     flag = FlagConnector.UpdateFlag(flag, e.User.Id);
                     await RenderFlag(flag, discord);
-                    message = "Cleared the flag.";
                 }
                 else if (e.Id == "flag-warn")
                 {
@@ -145,7 +157,36 @@ namespace Speedbump
                     flag.ResolutionUser = e.User.Id;
                     flag = FlagConnector.UpdateFlag(flag, e.User.Id);
                     await RenderFlag(flag, discord);
-                    message = "Gave the user a warning.";
+
+                    DiscordMessage msg = null;
+                    try
+                    {
+                        msg = await e.Guild.Channels[flag.SourceChannel].GetMessageAsync(flag.SourceMessage);
+                    } catch { }
+
+                    var message = $@"The moderators of `{e.Guild.Name}` have received one or more complaints regarding content you posted.
+They have reviewed the content in question and have determined, in their sole discretion, that it is against their code of conduct.
+This content was removed on your behalf.
+As a reminder, if they believe that you are frequently in breach of their code of conduct or are otherwise acting inconsistently with the letter or spirit of the code, they may limit, suspend or terminate your access to the server.
+{e.User.Mention} has issued you a warning for your message:
+```
+{flag.SourceContent}
+```
+In channel: {e.Guild.Channels[flag.SourceChannel].Mention}
+({(msg is null ? "?" : msg.Attachments.Count.ToString())} attachment(s))
+Sent at {(msg is null ? "?" : msg.CreationTimestamp.Discord(DiscordTimeFormat.LongDateTime_F))}";
+
+
+                    try
+                    {
+                        await (await e.Guild.GetMemberAsync(flag.SourceUser)).SendMessageAsync(Extensions.Embed().WithColor(DiscordColor.Red).WithDescription(message));
+                        try
+                        {
+                            await msg.DeleteAsync();
+                        }
+                        catch { }
+                    }
+                    catch { }
                 }
                 else if (e.Id == "flag-mute")
                 {
@@ -157,14 +198,21 @@ namespace Speedbump
                     flag.ResolutionUser = e.User.Id;
                     flag = FlagConnector.UpdateFlag(flag, e.User.Id);
                     await RenderFlag(flag, discord);
-                    message = "Muted the user.";
+
+                    DiscordMessage msg = null;
+                    try
+                    {
+                        msg = await e.Guild.Channels[flag.SourceChannel].GetMessageAsync(flag.SourceMessage);
+                        try
+                        {
+                            await msg.DeleteAsync();
+                        }
+                        catch { }
+                    }
+                    catch { }
                 }
 
-                await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder()
-                {
-                    Content = message,
-                    IsEphemeral = true,
-                });
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage);
             }
             else if (e.Id == "flag-rollback")
             {
@@ -179,13 +227,8 @@ namespace Speedbump
                 flag.ResolutionUser = e.User.Id;
                 flag = FlagConnector.UpdateFlag(flag, e.User.Id);
                 await RenderFlag(flag, discord);
-                message = "Rolled back the flag.";
 
-                await e.Interaction.CreateResponseAsync(InteractionResponseType.ChannelMessageWithSource, new DiscordInteractionResponseBuilder()
-                {
-                    Content = message,
-                    IsEphemeral = true,
-                });
+                await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage);
             }
         }
 
@@ -213,7 +256,7 @@ namespace Speedbump
             if (existing is not null) { return false; }
 
             var displayname = Regex.Replace((member.Nickname ?? member.Username).ToLower(), @"\s+", "-");
-            var muteChannel = guild.CreateChannelAsync(displayname, ChannelType.Text, muteCategory, user.ToString(), overwrites: new List<DiscordOverwriteBuilder>()
+            var muteChannel = await guild.CreateChannelAsync(displayname, ChannelType.Text, muteCategory, user.ToString(), overwrites: new List<DiscordOverwriteBuilder>()
             {
                 new DiscordOverwriteBuilder(guild.EveryoneRole)
                 .Deny(Permissions.AccessChannels),
@@ -225,8 +268,11 @@ namespace Speedbump
                 .Allow(Permissions.AccessChannels)
             });
 
+            await muteChannel.SendMessageAsync(member.Mention + ", you have been muted. Please wait for a moderator to review the situation, and in the meantime, read over the rules and guidelines set in place.");
+
             var e = Extensions.Embed()
                 .WithTitle("Member Muted")
+                .WithColor(DiscordColor.Red)
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
                 .AddField("Reason", reason)
@@ -287,6 +333,7 @@ namespace Speedbump
 
             var e = Extensions.Embed()
                 .WithTitle("Member Unmuted")
+                .WithColor(DiscordColor.Red)
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
                 .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
@@ -297,39 +344,43 @@ namespace Speedbump
             return true;
         }
 
-        public static async Task<bool> KickUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
+        public static async Task<bool> KickUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause, string reason)
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
             var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
             if (modlogs is null) { return false; }
-
-            await member.RemoveAsync();
 
             var e = Extensions.Embed()
                 .WithTitle("Member Kicked")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
+                .AddField("Reason", reason, false)
+                .WithColor(DiscordColor.DarkRed)
                 .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
+
+            await member.RemoveAsync();
 
             await modlogs.SendMessageAsync(e);
             return true;
         }
 
-        public static async Task<bool> BanUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause)
+        public static async Task<bool> BanUser(ulong user, ulong guildId, DiscordClient discord, DiscordUser cause, string reason)
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
             var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
             if (modlogs is null) { return false; }
 
-            await member.BanAsync();
-
             var e = Extensions.Embed()
                 .WithTitle("Member Banned")
                 .AddField("Member", member.Mention, true)
                 .AddField("Cause", cause.Mention, true)
+                .AddField("Reason", reason, false)
+                .WithColor(DiscordColor.DarkRed)
                 .WithAuthor(member.Username, iconUrl: member.GetAvatarUrl(ImageFormat.Auto));
+
+            await member.BanAsync();
 
             await modlogs.SendMessageAsync(e);
             return true;
@@ -417,6 +468,97 @@ namespace Speedbump
                 }
             }
             return true;
+        }
+
+        public static async Task<bool> Slowmode(long timer, long duration, DiscordChannel channel, DiscordClient discord, DiscordUser cause, string reason)
+        {
+            var modlogs = GuildConfigConnector.GetChannel(channel.Guild.Id, "channel.modinfo", discord);
+            if (modlogs is null || timer < 0 || timer > 21600 || duration < 1 || duration > 1440) { return false; }
+
+            var e = Extensions.Embed()
+                .AddField("Cause", cause.Mention, true)
+                .AddField("Channel", channel.Mention, true);
+
+            await channel.ModifyAsync(channel =>
+            {
+                channel.PerUserRateLimit = (int)timer;
+            });
+
+            if (timer > 0)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay((int)duration * 1000 * 60);
+
+                    await channel.ModifyAsync(channel =>
+                    {
+                        channel.PerUserRateLimit = 0;
+                    });
+                    var e2 = Extensions.Embed()
+                        .WithTitle("Slowmode Disabled")
+                        .AddField("Cause", cause.Mention, true)
+                        .AddField("Channel", channel.Mention, true)
+                        .WithFooter("Disabled from timer.");
+
+                    await modlogs.SendMessageAsync(e2);
+                });
+
+                e.WithTitle("Slowmode Enabled")
+                    .AddField("Duration (Minutes)", duration.ToString(), true)
+                    .AddField("Timer (Seconds)", timer.ToString(), true)
+                    .AddField("Reason", reason);
+            }
+            else
+            {
+                e.WithTitle("Slowmode Disabled")
+                    .WithFooter("Disabled manually.");
+            }
+
+            await modlogs.SendMessageAsync(e);
+            return true;
+        }
+
+        public static async Task<bool> Warn(DiscordUser user, int points, string reason, DiscordUser cause, DiscordClient discord, bool notify)
+        {
+            var member = (DiscordMember)user;
+
+            var flag = new Flag()
+            {
+                Guild = member.Guild.Id,
+                SourceUser = member.Id,
+                Time = DateTime.Now,
+                Type = FlagType.User,
+                SystemMessage = "The user was warned by a moderator:\n```\n" + reason + "\n```" + (notify ? "" : "\nThe user was not notified about this warning."),
+                SourceGuild = member.Guild.Id,
+                FlaggedBy = cause.Id,
+                ResolutionPoints = points,
+                ResolutionTime = DateTime.Now,
+                ResolutionType = FlagResolutionType.Warned,
+                ResolutionUser = cause.Id
+            };
+
+            flag = await RenderFlag(flag, discord);
+            FlagConnector.Create(flag, discord.CurrentUser.Id);
+
+            var message = $@"The moderators of `{member.Guild.Name}` have received one or more complaints regarding content you posted.
+They have reviewed the content in question and have determined, in their sole discretion, that it is against their code of conduct.
+This content was removed on your behalf.
+As a reminder, if they believe that you are frequently in breach of their code of conduct or are otherwise acting inconsistently with the letter or spirit of the code, they may limit, suspend or terminate your access to the server.
+{cause.Mention} has issued you a warning for:
+```
+{reason}
+```";
+
+            if (!notify) { return true; }
+            try
+            {
+                await member.SendMessageAsync(Extensions.Embed().WithColor(DiscordColor.Red).WithDescription(message));
+                return true;
+            } 
+            catch
+            {
+                return false;
+            }
         }
     }
 }

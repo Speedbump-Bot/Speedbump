@@ -18,5 +18,7 @@ namespace Speedbump
         Flag = 0,
         [ChoiceName("Auto Mute")]
         Mute = 1,
+        [ChoiceName("Auto Warn")]
+        Warn = 3,
     }
 }

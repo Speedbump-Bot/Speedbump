@@ -66,9 +66,12 @@ namespace Speedbump
             {
                 await e.Context.CreateResponseAsync("I've run into an error. I've let my devs know.");
             }
-            catch (Exception ex)
+            catch
             {
-                await e.Context.EditAsync("I've run into an error. I've let my devs know.");
+                try
+                {
+                    await e.Context.EditAsync("I've run into an error. I've let my devs know.");
+                } catch { }
             }
 
             Logger.Error($"tickControl ```cs\n {e.Exception}\n```\n\nUser: {e.Context.Member.Mention}\nCommand: {e.Context.CommandName}\nChannel: {e.Context.Channel.Mention}\nServer: {e.Context.Guild.Name}\n" +

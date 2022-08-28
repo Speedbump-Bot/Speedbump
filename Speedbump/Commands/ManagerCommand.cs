@@ -1,6 +1,8 @@
 ﻿using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
 
+using System.Text.RegularExpressions;
+
 namespace Speedbump.Commands
 {
     [SlashCommandGroup("manager", "Manager Controls")]
@@ -20,10 +22,13 @@ namespace Speedbump.Commands
                     return;
                 }
 
+                match = match.ToLower().Trim();
+                match = new Regex("[^a-zA-Z]").Replace(match, "");
+
                 await ctx.DeferAsync(true);
                 var m = new FilterMatch()
                 {
-                    Match = match.ToLower().Trim(),
+                    Match = match,
                     Guild = ctx.Guild.Id,
                     Type = type
                 };
@@ -39,8 +44,10 @@ namespace Speedbump.Commands
                     if (modinfo is null) { return; }
 
                     var e = Extensions.Embed()
-                        .WithTitle("Filter Modified")
-                        .AddField("Added", $"||{m.Match}||");
+                        .WithTitle("Filter Addition")
+                        .AddField("Added", $"||{m.Match}||")
+                        .AddField("Type", type.ToString(), true)
+                        .AddField("By", ctx.User.Mention, true);
                     await modinfo.SendMessageAsync(e);
                 }
             }
@@ -62,8 +69,9 @@ namespace Speedbump.Commands
                     if (modinfo is null) { return; }
 
                     var e = Extensions.Embed()
-                        .WithTitle("Filter Modified")
-                        .AddField("Removed", $"||{match}||");
+                        .WithTitle("Filter Removal")
+                        .AddField("Removed", $"||{match}||", true)
+                        .AddField("By", ctx.User.Mention, true);
                     await modinfo.SendMessageAsync(e);
                 }
             }
@@ -200,7 +208,7 @@ namespace Speedbump.Commands
                     {
                         var valKey = item.Value ?? item.Default ?? null;
 
-                        var front = $"`{item.Label.Split('.')[1],-15}`";
+                        var front = $"`{item.Label.Split('.')[1],-20}`";
 
                         object val = null;
 
@@ -240,7 +248,8 @@ namespace Speedbump.Commands
                 }
 
                 GuildConfigConnector.Set(ctx.Guild.Id, item, i.Default);
-                await ctx.CreateResponseAsync("I set it to default.", true);
+                //await ctx.CreateResponseAsync("I set it to default.", true);
+                await List(ctx);
             }
 
             [SlashCommand("setrole", "Set a role-type configuration item")]
