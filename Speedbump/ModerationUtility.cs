@@ -348,7 +348,7 @@ Sent at {(msg is null ? "?" : msg.CreationTimestamp.Discord(DiscordTimeFormat.Lo
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
-            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modinfo", discord);
             if (modlogs is null) { return false; }
 
             var e = Extensions.Embed()
@@ -369,7 +369,7 @@ Sent at {(msg is null ? "?" : msg.CreationTimestamp.Discord(DiscordTimeFormat.Lo
         {
             var guild = discord.Guilds[guildId];
             var member = await guild.GetMemberAsync(user);
-            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modlogs", discord);
+            var modlogs = GuildConfigConnector.GetChannel(guildId, "channel.modinfo", discord);
             if (modlogs is null) { return false; }
 
             var e = Extensions.Embed()
