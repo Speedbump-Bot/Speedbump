@@ -1,2 +1,2 @@
 # Speedbump
-A full-toolset moderation, filtering, and XP Discord bot.
+A full-toolset moderation, filtering, and utility Discord bot.
