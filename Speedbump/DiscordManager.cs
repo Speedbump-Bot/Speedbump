@@ -35,7 +35,7 @@ namespace Speedbump
                 TokenType = TokenType.Bot,
                 Intents = DiscordIntents.All,
                 MinimumLogLevel = Microsoft.Extensions.Logging.LogLevel.Trace,
-                LoggerFactory = new ConverterILoggerFactory(Logger, "Discord")
+                LoggerFactory = new ConverterILoggerFactory(Logger, "Discord", lifetime)
             });
 
             var slash = Client.UseSlashCommands();

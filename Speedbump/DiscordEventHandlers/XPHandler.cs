@@ -32,9 +32,9 @@ namespace Speedbump.DiscordEventHandlers
         {
             while (!Closing)
             {
-                for (var i = 0; i < 10; i++)
+                for (var i = 0; i < 30; i++)
                 {
-                    Thread.Sleep(1000);
+                    Thread.Sleep(2000);
                     if (Closing) { break; }
                 }
 
@@ -53,26 +53,28 @@ namespace Speedbump.DiscordEventHandlers
 
                 foreach (var user in list2)
                 {
-                    XPConnector.Increment(user.guild, user.user);
-                    var level = XPConnector.GetLevel(user.guild, user.user);
-                    var levels = XPConnector.GetLevels(user.guild);
-
-                    var guild = Discord.Guilds[user.guild];
-                    var member = guild.GetMemberAsync(user.user, true).GetAwaiter().GetResult();
-
-                    foreach (var l in levels)
+                    try
                     {
-                        if (level >= l.Level && !member.Roles.Any(r => r.Id == l.Role))
+                        XPConnector.Increment(user.guild, user.user);
+                        var level = XPConnector.GetLevel(user.guild, user.user);
+                        var levels = XPConnector.GetLevels(user.guild);
+
+                        var guild = Discord.Guilds[user.guild];
+                        var member = guild.GetMemberAsync(user.user, true).GetAwaiter().GetResult();
+
+                        foreach (var l in levels)
                         {
-                            var role = guild.GetRole(l.Role);
-                            member.GrantRoleAsync(role);
-                            try
+                            if (level >= l.Level && !member.Roles.Any(r => r.Id == l.Role))
                             {
-                                member.SendMessageAsync($"You've been given the role `{role.Name}` for reaching level {level} in {guild.Name}!").GetAwaiter().GetResult();
+                                try
+                                {
+                                    var role = guild.GetRole(l.Role);
+                                    member.GrantRoleAsync(role);
+                                    member.SendMessageAsync($"You've been given the role `{role.Name}` for reaching level {level} in {guild.Name}!").GetAwaiter().GetResult();
+                                } catch { }
                             }
-                            catch { }
                         }
-                    }
+                    } catch { }
                 }
             }
         }
