@@ -6,16 +6,18 @@ namespace Speedbump
     {
         private ILogger Logger;
         private string Source;
-        public ConverterILoggerFactory(ILogger logger, string source)
+        private Lifetime Lifetime;
+        public ConverterILoggerFactory(ILogger logger, string source, Lifetime lifetime)
         {
             Logger = logger;
             Source = source;
+            Lifetime = lifetime;
         }
 
         public void AddProvider(ILoggerProvider provider) { }
         public void Dispose() { }
 
-        public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName) => new ConverterILogger(Logger, Source);
+        public Microsoft.Extensions.Logging.ILogger CreateLogger(string categoryName) => new ConverterILogger(Logger, Source, Lifetime);
 
     }
 }

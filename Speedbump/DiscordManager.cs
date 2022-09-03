@@ -29,13 +29,31 @@ namespace Speedbump
             Logger.AddRedacted(token);
             ((Logger)Logger).LogHandlers.Add(LogHandler);
 
+            if (JsonConfiguration.PreviousInstanceCrashed)
+            {
+                var webhookUrl = Configuration.Get<string>("discord.logWebhook");
+
+                var client = new DiscordWebhookClient();
+                var webhook = client.AddWebhookAsync(new Uri(webhookUrl)).GetAwaiter().GetResult();
+
+                var lastLogLines = ((Logger)logger).LastLogFile;
+                lastLogLines = lastLogLines.Length > 4000 ? lastLogLines.Substring(0, 4000) : lastLogLines;
+
+                var embed = Extensions.Embed()
+                    .WithColor(DiscordColor.DarkRed)
+                    .WithTitle("Crash detected!")
+                    .WithDescription($"```cs\n{lastLogLines}\n```");
+
+                webhook.ExecuteAsync(new DiscordWebhookBuilder().AddEmbed(embed));
+            }
+
             Client = new DiscordClient(new DiscordConfiguration()
             {
                 Token = token,
                 TokenType = TokenType.Bot,
                 Intents = DiscordIntents.All,
                 MinimumLogLevel = Microsoft.Extensions.Logging.LogLevel.Trace,
-                LoggerFactory = new ConverterILoggerFactory(Logger, "Discord")
+                LoggerFactory = new ConverterILoggerFactory(Logger, "Discord", lifetime)
             });
 
             var slash = Client.UseSlashCommands();

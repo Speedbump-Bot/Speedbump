@@ -4,10 +4,12 @@
     {
         private ILogger Logger;
         private string Source;
-        public ConverterILogger(ILogger logger, string source)
+        private Lifetime Lifetime;
+        public ConverterILogger(ILogger logger, string source, Lifetime lifetime)
         {
             Logger = logger;
             Source = source;
+            Lifetime = lifetime;
         }
 
         public IDisposable BeginScope<TState>(TState state) { return this; }
@@ -21,6 +23,14 @@
             if (exception is not null)
             {
                 Logger.Error(exception);
+            }
+
+            if (Source == "#Discord" && formatter is not null && formatter.Invoke(state, exception).Contains("connection is zombie") && level == LogLevel.Critical)
+            {
+                Logger.Information("Shutting down...");
+                File.Delete("lock");
+                Lifetime.End(Lifetime.ExitCause.Normal);
+                Environment.Exit(0);
             }
         }
     }

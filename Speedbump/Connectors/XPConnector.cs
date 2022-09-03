@@ -10,10 +10,10 @@
             (int)Math.Floor((decimal)new SqlInstance().Read(@"select coalesce(sum(xp), 0) from @p0xp where guild=@p1 and user=@p2", guild, user).Rows[0][0]);
 
         public static int GetLevel(ulong guild, ulong user) =>
-            (int)Math.Floor((1 + Math.Sqrt(1 + (8 * GetXP(guild, user)) / (double)200)) / 2);
+            (int)Math.Floor((1 + Math.Sqrt(1 + (8 * GetXP(guild, user)) / (double)100)) / 2);
 
         public static int GetMinXP(int level) =>
-            (int)Math.Round(200 * (Math.Pow(2 * level - 1, 2) - 1) / 8);
+            (int)Math.Round(100 * (Math.Pow(2 * level - 1, 2) - 1) / 8);
 
         public static List<(int rank, ulong user, int xp)> Leaderboard(ulong guild)
         {

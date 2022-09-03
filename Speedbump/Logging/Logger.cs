@@ -30,6 +30,7 @@ namespace Speedbump
                 { LogLevel.Critical, ConsoleColor.DarkRed },
             };
         private List<string> Redacted = new();
+        public string LastLogFile;
 
         public Logger(IConfiguration config, Lifetime lifetime)
         {
@@ -45,6 +46,10 @@ namespace Speedbump
             foreach (var file in Directory.GetFiles(logDir))
             {
                 if (Path.GetExtension(file) == ".zip") { continue; }
+                if (LastLogFile is null)
+                {
+                    LastLogFile = File.ReadAllText(file);
+                }
                 var newFile = Path.GetFileName(file) + ".zip";
                 var tempFolder = Directory.CreateDirectory(Path.Combine(logDir, "temp-" + Path.GetFileNameWithoutExtension(file)));
                 File.Move(file, Path.Combine(tempFolder.FullName, Path.GetFileName(file)));

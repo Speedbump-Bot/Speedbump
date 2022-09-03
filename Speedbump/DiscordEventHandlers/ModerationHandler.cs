@@ -21,50 +21,67 @@ namespace Speedbump.DiscordEventHandlers
             Discord.ComponentInteractionCreated += Discord_ComponentInteractionCreated;
         }
 
-        private async Task Discord_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs ev)
+        private Task Discord_GuildMemberRemoved(DiscordClient sender, GuildMemberRemoveEventArgs ev)
         {
-            var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
-            if (modinfo is null) { return; }
-            var e = Extensions.Embed()
-                .WithTitle("Member Left")
-                .WithDescription(ev.Member.Mention)
-                .AddField("Joined At", $"<t:{ev.Member.JoinedAt.ToUnixTimeSeconds()}:F>", true)
-                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
-            await modinfo.SendMessageAsync(e);
+            _ = Task.Run(async () =>
+            {
+                var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
+                if (modinfo is null) { return; }
+                var e = Extensions.Embed()
+                    .WithTitle("Member Left")
+                    .WithDescription(ev.Member.Mention)
+                    .AddField("Joined At", $"<t:{ev.Member.JoinedAt.ToUnixTimeSeconds()}:F>", true)
+                    .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
+                await modinfo.SendMessageAsync(e);
+            });
+            return Task.CompletedTask;
         }
 
-        private async Task Discord_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs ev)
+        private Task Discord_GuildMemberAdded(DiscordClient sender, GuildMemberAddEventArgs ev)
         {
-            var general = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.general", Discord);
-            if (general is null) { return; }
+            _ = Task.Run(async () =>
+            {
+                var general = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.general", Discord);
+                if (general is null) { return; }
 
-            var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
-            if (modinfo is null) { return; }
+                var modinfo = GuildConfigConnector.GetChannel(ev.Guild.Id, "channel.modinfo", Discord);
+                if (modinfo is null) { return; }
 
-            var e = Extensions.Embed()
-                .WithTitle("Member Joined")
-                .WithDescription(ev.Member.Mention)
-                .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
-            await modinfo.SendMessageAsync(e);
+                var e = Extensions.Embed()
+                    .WithTitle("Member Joined")
+                    .WithDescription(ev.Member.Mention)
+                    .AddField("Account Created At", $"<t:{ev.Member.CreationTimestamp.ToUnixTimeSeconds()}:F>", true);
+                await modinfo.SendMessageAsync(e);
 
-            var joinMessage = Tag.GenerateFromTemplate(GuildConfigConnector.Get(ev.Guild.Id, "text.joinmessage").Value, ev.Member, general);
-            await general.SendMessageAsync(joinMessage);
+                var joinMessage = Tag.GenerateFromTemplate(GuildConfigConnector.Get(ev.Guild.Id, "text.joinmessage").Value, ev.Member, general);
+                await general.SendMessageAsync(joinMessage);
+            });
+            return Task.CompletedTask;
         }
 
-        private async Task Discord_ComponentInteractionCreated(DiscordClient sender, ComponentInteractionCreateEventArgs e)
+        private Task Discord_ComponentInteractionCreated(DiscordClient sender, ComponentInteractionCreateEventArgs e)
         {
-            await ModerationUtility.HandleComponent(e, Discord);
+            _ = ModerationUtility.HandleComponent(e, Discord);
+            return Task.CompletedTask;
         }
 
-        private async Task Discord_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e) =>
-            await ModerationUtility.HandleDelete(new List<DiscordMessage>() { e.Message }, e.Channel, null, Discord);
-
-        private async Task Discord_MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
+        private Task Discord_MessageDeleted(DiscordClient sender, MessageDeleteEventArgs e)
         {
-            await HandleMessage(e.Message);
+            _ = ModerationUtility.HandleDelete(new List<DiscordMessage>() { e.Message }, e.Channel, null, Discord);
+            return Task.CompletedTask;
         }
 
-        private async Task Discord_MessageCreated(DiscordClient sender, MessageCreateEventArgs e) => await HandleMessage(e.Message);
+        private Task Discord_MessageUpdated(DiscordClient sender, MessageUpdateEventArgs e)
+        {
+            _ = HandleMessage(e.Message);
+            return Task.CompletedTask;
+        }
+
+        private Task Discord_MessageCreated(DiscordClient sender, MessageCreateEventArgs e)
+        {
+            _ = HandleMessage(e.Message);
+            return Task.CompletedTask;
+        }
 
         private async Task HandleMessage(DiscordMessage message)
         {
@@ -97,7 +114,7 @@ namespace Speedbump.DiscordEventHandlers
                 SourceUser = message.Author.Id,
                 Time = message.Timestamp.LocalDateTime,
                 Type = FlagType.Message,
-                SystemMessage = action == FilterMatchType.Mute ? "The user was automatically muted." : action == FilterMatchType.Warn ? "The user was automatically warned." : "The message matched a filter.",
+                SystemMessage = action == FilterMatchType.Mute ? "The user was automatically muted. The message was deleted." : action == FilterMatchType.Warn ? "The user was automatically warned. The message was deleted." : "The message matched a filter.",
                 SourceMessage = message.Id,
                 SourceGuild = message.Channel.Guild.Id,
                 FlaggedBy = Discord.CurrentUser.Id,
