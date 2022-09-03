@@ -9,10 +9,12 @@ namespace Speedbump.DiscordEventHandlers
         DiscordClient Discord;
         ConcurrentQueue<(ulong guild, ulong player)> Players = new();
         bool Closing;
+        ILogger Logger;
 
-        public XPHandler(DiscordManager discord, Lifetime lifetime)
+        public XPHandler(DiscordManager discord, Lifetime lifetime, ILogger logger)
         {
             Discord = discord.Client;
+            Logger = logger;
             lifetime.Add(cause => Closing = true);
 
             Discord.MessageCreated += Discord_MessageCreated;
@@ -47,8 +49,8 @@ namespace Speedbump.DiscordEventHandlers
 
                 var list2 = list.GroupBy(c => new
                 {
-                    c.Item1,
-                    c.Item2
+                    c.guild,
+                    c.user
                 }).Select(p => p.First());
 
                 foreach (var user in list2)
@@ -66,15 +68,20 @@ namespace Speedbump.DiscordEventHandlers
                         {
                             if (level >= l.Level && !member.Roles.Any(r => r.Id == l.Role))
                             {
+                                var role = guild.GetRole(l.Role);
+                                member.GrantRoleAsync(role).GetAwaiter().GetResult();
                                 try
                                 {
-                                    var role = guild.GetRole(l.Role);
-                                    member.GrantRoleAsync(role);
+                                    // This can error if the user blocked the bot, or due to user privacy settings, or if the user leaves immediately after sending a message.
                                     member.SendMessageAsync($"You've been given the role `{role.Name}` for reaching level {level} in {guild.Name}!").GetAwaiter().GetResult();
-                                } catch { }
+                                } catch { } 
                             }
                         }
-                    } catch { }
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Error("Error handing out XP:\n\n" + ex);
+                    }
                 }
             }
         }
