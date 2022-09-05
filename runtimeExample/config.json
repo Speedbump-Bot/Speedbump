@@ -1,0 +1,23 @@
+{
+  "discord": {
+    "token": "",
+    "debugGuild": 1,
+    "logWebhook": "https://discord.com/api/webhooks/..."
+  },
+  "logging": {
+    "directory": "log",
+    "levels": {
+      "console": "Information",
+      "file": "Debug",
+      "discord": "Error"
+    }
+  },
+  "sql": {
+    "host": "",
+    "database": "",
+    "user": "",
+    "password": "",
+    "port": 3306,
+    "prefix": ""
+  }
+}

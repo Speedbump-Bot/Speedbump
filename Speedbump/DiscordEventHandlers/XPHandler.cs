@@ -34,9 +34,9 @@ namespace Speedbump.DiscordEventHandlers
         {
             while (!Closing)
             {
-                for (var i = 0; i < 30; i++)
+                for (var i = 0; i < 1; i++)
                 {
-                    Thread.Sleep(2000);
+                    Thread.Sleep(5000);
                     if (Closing) { break; }
                 }
 

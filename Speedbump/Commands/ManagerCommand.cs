@@ -152,7 +152,20 @@ namespace Speedbump.Commands
                     Role = role.Id
                 };
 
-                await ctx.CreateResponseAsync(XPConnector.AddLevel(l) ? "Level created." : "Failed to create level. Either the level already exists, or you have the max of 10 levels.");
+                using (var con = new DataContext())
+                {
+                    await con.XPLevels.AddAsync(l);
+                    try
+                    {
+                        await con.SaveChangesAsync();
+                        await ctx.CreateResponseAsync("Level created.");
+                    }
+                    catch
+                    {
+                        await ctx.CreateResponseAsync("Failed to create level. Either the level already exists, or you have the max of 10 levels.");
+                        return;
+                    }
+                }
             }
 
             [SlashCommand("remove", "Removes a level.")]
@@ -165,7 +178,19 @@ namespace Speedbump.Commands
                     Level = (int)level,
                 };
 
-                await ctx.CreateResponseAsync(XPConnector.DeleteLevel(l) ? "Level deleted" : "That level does not exist.");
+                using (var con = new DataContext())
+                {
+                    con.Remove(l);
+                    try
+                    {
+                        con.SaveChanges();
+                        await ctx.CreateResponseAsync("Level deleted");
+                    }
+                    catch
+                    {
+                        await ctx.CreateResponseAsync("That level does not exist.");
+                    }
+                }
             }
         }
 
@@ -315,12 +340,17 @@ namespace Speedbump.Commands
 
     public class XPLevelAutocompleteProvider : IAutocompleteProvider
     {
-        public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx) =>
-            Task.FromResult(
-                XPConnector.GetLevels(ctx.Guild.Id)
-                    .OrderBy(o => o.Level)
+        public Task<IEnumerable<DiscordAutoCompleteChoice>> Provider(AutocompleteContext ctx)
+        {
+            using (var con = new DataContext())
+            {
+                var res = con.XPLevels.Where(l => l.Guild == ctx.Guild.Id).ToList();
+                return Task.FromResult(res.OrderBy(o => o.Level)
+                    .Where(o => ctx.OptionValue.ToString().Trim() == "" || o.Level.ToString() == ctx.OptionValue.ToString())
                     .Select(m => new DiscordAutoCompleteChoice($"{ctx.Guild.Roles[m.Role].Name} ({m.Level})", m.Level))
-            );
+                    );
+            }
+        }
     }
 
     public class ConfigAutocompleteProvider : IAutocompleteProvider

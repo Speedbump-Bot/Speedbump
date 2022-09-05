@@ -7,7 +7,7 @@ namespace Speedbump
     {
         public static GuildConfig Get(ulong guild, string item)
         {
-            var i = new SqlInstance();
+            var i = new OldSqlInstance();
             return i.Read(@"
                 select * from
                 (
@@ -27,7 +27,7 @@ namespace Speedbump
 
         public static List<GuildConfig> GetAll(ulong guild)
         {
-            var i = new SqlInstance();
+            var i = new OldSqlInstance();
             return i.Read(@"
                 select * from
                 (
@@ -45,7 +45,7 @@ namespace Speedbump
 
         public static GuildConfig Set(ulong guild, string item, string value)
         {
-            var i = new SqlInstance();
+            var i = new OldSqlInstance();
             i.Execute("delete from @p0guildconfig where guild=@p1 and item=@p2; insert into @p0guildconfig (guild, item, value) values (@p1, @p2, @p3)", 
                 guild, item, value);
 

@@ -12,13 +12,13 @@
         }
 
         private static List<FilterMatch> GetFilterMatches() =>
-            new SqlInstance().Read(@"select * from @p0filter").Bind<FilterMatch>();
+            new OldSqlInstance().Read(@"select * from @p0filter").Bind<FilterMatch>();
 
         public static List<FilterMatch> GetMatches(ulong guild) => Matches.Data.Where(m => m.Guild == guild).ToList();
 
         public static bool AddMatch(FilterMatch f)
         {
-            var i = new SqlInstance();
+            var i = new OldSqlInstance();
             var m = i.Read("select * from @p0filter where guild=@p1 and `match`=@p2", f.Guild, f.Match);
             if (m.RowCount > 0)
             {
@@ -33,7 +33,7 @@
 
         public static bool RemoveMatch(ulong guild, string match)
         {
-            var res = (long)new SqlInstance().Read("delete from @p0filter where guild=@p1 and `match`=@p2; select row_count();", guild, match).Rows[0][0] > 0;
+            var res = (long)new OldSqlInstance().Read("delete from @p0filter where guild=@p1 and `match`=@p2; select row_count();", guild, match).Rows[0][0] > 0;
             Matches.Invalidate();
             return res;
         }

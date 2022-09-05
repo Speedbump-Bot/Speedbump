@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 namespace Speedbump
 {
-    public class SqlInstance : IDisposable
+    public class OldSqlInstance : IDisposable
     {
         private static string ConnString;
         private static string Prefix;
@@ -35,7 +35,7 @@ namespace Speedbump
 
         private MySqlConnection Connection { get; }
 
-        public SqlInstance()
+        public OldSqlInstance()
         {
             startup:;
             var attempts = 0;

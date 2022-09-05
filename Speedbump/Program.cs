@@ -18,6 +18,7 @@ namespace Speedbump
 
             var lifetime = new Lifetime();
             var config = new JsonConfiguration(lifetime);
+            DataContext.Config = config;
 
             var collection = new ServiceCollection()
                 .AddSingleton(lifetime)
@@ -37,7 +38,7 @@ namespace Speedbump
             AppDomain.CurrentDomain.UnhandledException += (s, e) => 
                 CurrentDomain_UnhandledException(s, e, logger, lifetime);
 
-            SqlInstance.Init(config, logger);
+            OldSqlInstance.Init(config, logger);
 
             provider.GetService<DiscordManager>();
             provider.GetService<ModerationHandler>();
